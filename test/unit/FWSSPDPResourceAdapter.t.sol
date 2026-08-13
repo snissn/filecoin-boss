@@ -18,37 +18,48 @@ contract MockPDPVerifierView is IPDPVerifierView {
     }
 
     mapping(uint256 setId => DataSet dataSet) private _dataSets;
+    bool public revertReads;
+
+    modifier readable() {
+        require(!revertReads, "PDP unavailable");
+        _;
+    }
 
     function setDataSet(uint256 setId, DataSet calldata dataSet) external {
         _dataSets[setId] = dataSet;
+    }
+
+    function setRevertReads(bool revertReads_) external {
+        revertReads = revertReads_;
     }
 
     function getDataSetRecord(uint256 setId) external view returns (DataSet memory) {
         return _dataSets[setId];
     }
 
-    function dataSetLive(uint256 setId) external view returns (bool) {
+    function dataSetLive(uint256 setId) external view readable returns (bool) {
         return _dataSets[setId].live;
     }
 
-    function getDataSetLeafCount(uint256 setId) external view returns (uint256) {
+    function getDataSetLeafCount(uint256 setId) external view readable returns (uint256) {
         return _dataSets[setId].leafCount;
     }
 
-    function getDataSetListener(uint256 setId) external view returns (address) {
+    function getDataSetListener(uint256 setId) external view readable returns (address) {
         return _dataSets[setId].listener;
     }
 
     function getDataSetStorageProvider(uint256 setId)
         external
         view
+        readable
         returns (address serviceProvider, address proposedProvider)
     {
         DataSet storage dataSet = _dataSets[setId];
         return (dataSet.storageProvider, dataSet.proposedProvider);
     }
 
-    function getDataSetLastProvenEpoch(uint256 setId) external view returns (uint256) {
+    function getDataSetLastProvenEpoch(uint256 setId) external view readable returns (uint256) {
         return _dataSets[setId].lastProvenEpoch;
     }
 }
@@ -57,6 +68,12 @@ contract MockFWSSStateView is IFWSSStateView {
     address public immutable service;
     mapping(uint256 dataSetId => DataSetInfoView info) private _dataSets;
     mapping(uint256 dataSetId => DataSetStatus status) private _status;
+    bool public revertReads;
+
+    modifier readable() {
+        require(!revertReads, "FWSS unavailable");
+        _;
+    }
 
     constructor(address service_) {
         service = service_;
@@ -67,7 +84,11 @@ contract MockFWSSStateView is IFWSSStateView {
         _status[dataSetId] = status_;
     }
 
-    function getDataSet(uint256 dataSetId) external view returns (DataSetInfoView memory info) {
+    function setRevertReads(bool revertReads_) external {
+        revertReads = revertReads_;
+    }
+
+    function getDataSet(uint256 dataSetId) external view readable returns (DataSetInfoView memory info) {
         return _dataSets[dataSetId];
     }
 
@@ -75,7 +96,7 @@ contract MockFWSSStateView is IFWSSStateView {
         return leafCount * 32 * 127 / 128;
     }
 
-    function getDataSetStatus(uint256 dataSetId) external view returns (DataSetStatus status) {
+    function getDataSetStatus(uint256 dataSetId) external view readable returns (DataSetStatus status) {
         return _status[dataSetId];
     }
 }
@@ -189,6 +210,18 @@ contract FWSSPDPResourceAdapterTest {
         _mustFail(resource, PAYER, bytes(""));
     }
 
+    function testRevertingDependenciesReturnUnavailableStatus() public {
+        BossTypes.ResourceRef memory resource = _resource();
+        bytes32 resourceKey = BossHashes.hashResource(resource);
+
+        pdp.setRevertReads(true);
+        _assertUnavailable(adapter.inspect(resource, PAYER, bytes("")), resourceKey);
+
+        pdp.setRevertReads(false);
+        stateView.setRevertReads(true);
+        _assertUnavailable(adapter.inspect(resource, PAYER, bytes("")), resourceKey);
+    }
+
     function testStatusHashChangesWithCapacityAndProviderState() public {
         bytes32 first = adapter.inspect(_resource(), PAYER, bytes("")).statusHash;
 
@@ -268,6 +301,17 @@ contract FWSSPDPResourceAdapterTest {
             resourceId: DATA_SET_ID,
             context: bytes32(0)
         });
+    }
+
+    function _assertUnavailable(BossTypes.ResourceStatus memory status, bytes32 resourceKey) private pure {
+        require(status.resourceKey == resourceKey, "unavailable resource key");
+        require(!status.exists, "unavailable exists");
+        require(!status.attachable, "unavailable attachable");
+        require(!status.billable, "unavailable billable");
+        require(status.payer == address(0), "unavailable payer");
+        require(status.storageProvider == address(0), "unavailable provider");
+        require(status.sizeInBytes == 0, "unavailable size");
+        require(status.statusHash == bytes32(0), "unavailable status hash");
     }
 
     function _mustFail(BossTypes.ResourceRef memory resource, address expectedPayer, bytes memory resourceData)

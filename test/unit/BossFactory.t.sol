@@ -70,7 +70,7 @@ contract BossFactoryTest {
         require(first.code.length != 0, "idempotent code");
     }
 
-    function testEveryAuthorityAndConfigurationInputAffectsAddress() public view {
+    function testEveryAuthorityAndConfigurationInputAffectsAddress() public {
         BossFactory factory = new BossFactory();
         address base = factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION);
 

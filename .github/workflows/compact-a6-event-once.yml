@@ -1,0 +1,45 @@
+name: Compact A6 event once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-8-pdp-capacity-pricing
+    paths:
+      - .github/compact-a6-event-once
+
+permissions:
+  contents: write
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-8-pdp-capacity-pricing
+          fetch-depth: 0
+          submodules: recursive
+
+      - run: python3 .github/compact-a6-event.py
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit compact event and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/compact-a6-event-once \
+            .github/compact-a6-event.py \
+            .github/workflows/compact-a6-event-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor: compact capacity quote event"
+          git push origin HEAD:gpt56/issue-8-pdp-capacity-pricing

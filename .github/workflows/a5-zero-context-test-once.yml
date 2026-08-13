@@ -1,0 +1,88 @@
+name: Add A5 zero-context regression once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-7-fwss-pdp-resource-binding
+    paths:
+      - .github/a5-zero-context-test-once
+
+permissions:
+  contents: write
+
+jobs:
+  regress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-7-fwss-pdp-resource-binding
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Require normative zero resource context
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"anchor mismatch ({count}): {old[:100]!r}")
+              return text.replace(old, new)
+
+          unit = Path("test/unit/FWSSPDPResourceAdapter.t.sol")
+          text = unit.read_text()
+          old = '''    function testContextCommitsExactDeploymentTuple() public view {
+                  bytes32 expected = keccak256(
+                      abi.encode("FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1", FWSS_SERVICE, address(stateView))
+                  );
+                  require(adapter.resourceContext() == expected, "deployment context");
+                  require(_resource().context == expected, "resource context");
+              }
+          '''
+          new = '''    function testAdapterPinsExactDeploymentTupleAndUsesZeroContext() public view {
+                  require(adapter.pdpVerifier() == address(pdp), "PDP verifier");
+                  require(adapter.fwssService() == FWSS_SERVICE, "FWSS service");
+                  require(adapter.fwssStateView() == address(stateView), "FWSS state view");
+                  require(adapter.resourceContext() == bytes32(0), "public MVP context");
+                  require(_resource().context == bytes32(0), "resource context");
+              }
+          '''
+          text = replace_once(text, old, new)
+          text = replace_once(
+              text,
+              "            context: adapter.resourceContext()\n",
+              "            context: bytes32(0)\n",
+          )
+          unit.write_text(text)
+
+          integration = Path("test/integration/FWSSResourceBinding.t.sol")
+          text = integration.read_text()
+          text = replace_once(
+              text,
+              "                context: resourceAdapter.resourceContext()\n",
+              "                context: bytes32(0)\n",
+          )
+          integration.write_text(text)
+          PY
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit regression and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/a5-zero-context-test-once .github/workflows/a5-zero-context-test-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test: require zero FWSS resource context"
+          git push origin HEAD:gpt56/issue-7-fwss-pdp-resource-binding

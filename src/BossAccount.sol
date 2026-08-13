@@ -11,8 +11,7 @@ import {BossTypes} from "./libraries/BossTypes.sol";
 
 /// @notice Immutable user-owned account for independently bounded service rails.
 contract BossAccount is IFilecoinPayValidator {
-    uint256 private constant SECP256K1N_HALF =
-        0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
+    uint256 private constant SECP256K1N_HALF = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
     bytes32 private constant ACTIVATION_ACK_TYPEHASH =
         keccak256("ActivationAcknowledgement(bytes32 subscriptionId,bytes32 provisioningHash)");
 
@@ -117,9 +116,8 @@ contract BossAccount is IFilecoinPayValidator {
         _requireAdapter(offer.pricingAdapter, BossTypes.AdapterKind.PRICING);
 
         if (input.resource.chainId != block.chainid) revert InvalidResource();
-        BossTypes.ResourceStatus memory resource = IBossResourceAdapter(offer.resourceAdapter).inspect(
-            input.resource, payer, input.resourceData
-        );
+        BossTypes.ResourceStatus memory resource =
+            IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, payer, input.resourceData);
         if (
             !resource.exists || !resource.attachable || !resource.billable || resource.payer != payer
                 || resource.resourceKey == bytes32(0)
@@ -138,12 +136,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         IFilecoinPayV1 pay = IFilecoinPayV1(filecoinPay);
         railId = pay.createRail(
-            offer.token,
-            payer,
-            offer.beneficiary,
-            address(this),
-            offer.commissionBps,
-            offer.commissionRecipient
+            offer.token, payer, offer.beneficiary, address(this), offer.commissionBps, offer.commissionRecipient
         );
         pay.modifyRailLockup(railId, offer.requiredLockupPeriod, input.initialFixedBudget);
 
@@ -210,17 +203,18 @@ contract BossAccount is IFilecoinPayValidator {
         return BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, address(this)), structHash);
     }
 
-    function acknowledgeActivation(
-        bytes32 subscriptionId,
-        bytes32 provisioningHash,
-        bytes calldata providerSignature
-    ) external {
+    function acknowledgeActivation(bytes32 subscriptionId, bytes32 provisioningHash, bytes calldata providerSignature)
+        external
+    {
         BossTypes.Subscription storage subscription = _requireSubscription(subscriptionId);
         if (subscription.state != BossTypes.SubscriptionState.PENDING_ACTIVATION) {
             revert InvalidState(subscriptionId, subscription.state);
         }
         if (_activationAcknowledged[subscriptionId]) revert ActivationAlreadyAcknowledged(subscriptionId);
-        if (_recover(activationAckDigest(subscriptionId, provisioningHash), providerSignature) != _offerSigningKey[subscriptionId]) {
+        if (
+            _recover(activationAckDigest(subscriptionId, provisioningHash), providerSignature)
+                != _offerSigningKey[subscriptionId]
+        ) {
             revert InvalidProviderSignature();
         }
 
@@ -400,7 +394,10 @@ contract BossAccount is IFilecoinPayValidator {
         }
 
         BossServiceRegistry registry = BossServiceRegistry(serviceRegistry);
-        if (!registry.isAuthorizedSigner(offer.provider, offer.signingKey) || registry.isOfferNonceRevoked(offer.provider, offer.nonce)) {
+        if (
+            !registry.isAuthorizedSigner(offer.provider, offer.signingKey)
+                || registry.isOfferNonceRevoked(offer.provider, offer.nonce)
+        ) {
             revert InvalidProviderAuthority();
         }
         BossServiceRegistry.ServiceRecord memory service = registry.getService(offer.provider, offer.serviceId);

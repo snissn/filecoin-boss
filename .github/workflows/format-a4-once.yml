@@ -1,0 +1,30 @@
+name: Format A4 once
+
+on:
+  push:
+    branches: [gpt56/issue-6-flat-streaming-lifecycle]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-6-flat-streaming-lifecycle
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+      - name: Format and remove this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge fmt
+          rm .github/workflows/format-a4-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: format flat lifecycle implementation"
+          git push origin HEAD:gpt56/issue-6-flat-streaming-lifecycle

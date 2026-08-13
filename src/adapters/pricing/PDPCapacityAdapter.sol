@@ -5,21 +5,19 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IBossPricingAdapter} from "../../interfaces/IBossPricingAdapter.sol";
 import {BossTypes} from "../../libraries/BossTypes.sol";
 
-/// @notice Quotes prospective streaming rates from validated approximate raw capacity.
+/// @notice Quotes streaming rates from validated approximate raw capacity.
+/// @dev Quote freshness is owned by the signed ServiceOffer and BossAccount, not pricing data.
 contract PDPCapacityAdapter is IBossPricingAdapter {
     uint256 private constant BYTES_PER_TIB = 1 << 40;
 
     error InvalidPricingData();
     error InvalidPrice();
     error InvalidPeriod();
-    error InvalidQuoteTtl();
-    error QuoteEpochOverflow();
     error UsageUnsupported();
 
     struct CapacityTerms {
         uint256 grossPricePerTiBPerPeriod;
         uint64 periodEpochs;
-        uint64 quoteTtlEpochs;
     }
 
     function interfaceVersion() external pure returns (uint64) {
@@ -28,14 +26,11 @@ contract PDPCapacityAdapter is IBossPricingAdapter {
 
     function quoteRate(BossTypes.ResourceStatus calldata resource, bytes calldata pricingData)
         external
-        view
+        pure
         returns (BossTypes.RateQuote memory quote)
     {
         CapacityTerms memory terms = _terms(pricingData);
         bool billable = resource.exists && resource.attachable && resource.billable;
-
-        uint256 validThrough = billable ? block.number + terms.quoteTtlEpochs : block.number;
-        if (validThrough > type(uint64).max) revert QuoteEpochOverflow();
 
         uint256 ratePerEpoch;
         if (billable) {
@@ -51,16 +46,15 @@ contract PDPCapacityAdapter is IBossPricingAdapter {
                 resource.sizeInBytes,
                 keccak256(pricingData),
                 ratePerEpoch,
-                uint64(validThrough),
                 billable
             )
         );
         quote = BossTypes.RateQuote({
             ratePerEpoch: ratePerEpoch,
-            validThroughEpoch: uint64(validThrough),
+            validThroughEpoch: type(uint64).max,
             billable: billable,
             quoteHash: quoteHash,
-            note: "approximate raw bytes; prospective capacity rate"
+            note: "approximate raw bytes; account-owned quote TTL"
         });
     }
 
@@ -69,10 +63,9 @@ contract PDPCapacityAdapter is IBossPricingAdapter {
     }
 
     function _terms(bytes calldata pricingData) private pure returns (CapacityTerms memory terms) {
-        if (pricingData.length != 96) revert InvalidPricingData();
+        if (pricingData.length != 64) revert InvalidPricingData();
         terms = abi.decode(pricingData, (CapacityTerms));
         if (terms.grossPricePerTiBPerPeriod == 0) revert InvalidPrice();
         if (terms.periodEpochs == 0) revert InvalidPeriod();
-        if (terms.quoteTtlEpochs == 0) revert InvalidQuoteTtl();
     }
 }

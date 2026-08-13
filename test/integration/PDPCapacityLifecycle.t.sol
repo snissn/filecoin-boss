@@ -6,7 +6,6 @@ import {BossAdapterRegistry} from "../../src/BossAdapterRegistry.sol";
 import {BossServiceRegistry} from "../../src/BossServiceRegistry.sol";
 import {PDPCapacityAdapter} from "../../src/adapters/pricing/PDPCapacityAdapter.sol";
 import {IBossResourceAdapter} from "../../src/interfaces/IBossResourceAdapter.sol";
-import {IFilecoinPayV1} from "../../src/interfaces/IFilecoinPayV1.sol";
 import {BossHashes} from "../../src/libraries/BossHashes.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
 import {MockERC1271Signer, MockFilecoinPayV1} from "../unit/BossAccountFlatLifecycle.t.sol";

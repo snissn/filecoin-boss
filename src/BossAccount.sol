@@ -566,9 +566,7 @@ contract BossAccount is IFilecoinPayValidator {
         result = IFilecoinPayValidator.ValidationResult({
             modifiedAmount: modifiedAmount,
             settleUpto: toEpoch,
-            note: subscription.billingKind == BossTypes.BillingKind.STREAM_CAPACITY
-                ? "FILECOIN_BOSS_CAPACITY_V1"
-                : "FILECOIN_BOSS_FLAT_V1"
+            note: "FILECOIN_BOSS_STREAM_V1"
         });
     }
 

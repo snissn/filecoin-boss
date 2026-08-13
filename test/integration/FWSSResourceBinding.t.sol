@@ -93,6 +93,19 @@ contract FWSSResourceBindingTest {
         require(!success, "wrong deployment context accepted");
     }
 
+    function testBossRejectsUnavailablePDPAndFWSSDependencies() public {
+        pdp.setRevertReads(true);
+        BossTypes.AcceptanceInput memory input = _input();
+        (bool pdpSuccess,) = address(account).call(abi.encodeCall(BossAccount.acceptOffer, (input)));
+        require(!pdpSuccess, "unavailable PDP accepted");
+
+        pdp.setRevertReads(false);
+        stateView.setRevertReads(true);
+        input = _input();
+        (bool fwssSuccess,) = address(account).call(abi.encodeCall(BossAccount.acceptOffer, (input)));
+        require(!fwssSuccess, "unavailable FWSS accepted");
+    }
+
     function _input() private returns (BossTypes.AcceptanceInput memory input) {
         bytes memory pricingData =
             abi.encode(FlatRateAdapter.FlatRateTerms({grossPricePerPeriod: 1_000, periodEpochs: 1_000}));

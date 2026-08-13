@@ -1,0 +1,45 @@
+name: Restore reviewed A3 version policy once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-25-factory-creation-code-calldata
+    paths:
+      - .github/restore-a3-r1-version-once
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-25-factory-creation-code-calldata
+          fetch-depth: 0
+          submodules: recursive
+
+      - run: python3 .github/restore-a3-r1-version.py
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit policy restoration and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/restore-a3-r1-version-once \
+            .github/restore-a3-r1-version.py \
+            .github/workflows/restore-a3-r1-version-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: preserve reviewed version-one boundary"
+          git push origin HEAD:gpt56/issue-25-factory-creation-code-calldata

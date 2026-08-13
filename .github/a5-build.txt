@@ -1,0 +1,10 @@
+Compiling 85 files with Solc 0.8.30
+Solc 0.8.30 finished in 140.99ms
+Error: Compiler run failed:
+Error (8349): Initial value for constant variable has to be compile-time constant.
+  --> test/integration/FWSSResourceBinding.t.sol:25:39:
+   |
+25 |     address internal constant PAYER = address(this);
+   |                                       ^^^^^^^^^^^^^
+
+exit_status=1

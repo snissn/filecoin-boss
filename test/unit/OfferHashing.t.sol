@@ -7,16 +7,14 @@ import {BossHashes} from "../../src/libraries/BossHashes.sol";
 contract OfferHashingTest {
     function testServiceOfferTypehashVector() public pure {
         require(
-            BossHashes.serviceOfferTypehash()
-                == 0x61bf5420969c320cfb7ce504f65256abc945d0989a42c04d94c792b9ba45f830,
+            BossHashes.serviceOfferTypehash() == 0x61bf5420969c320cfb7ce504f65256abc945d0989a42c04d94c792b9ba45f830,
             "service offer typehash"
         );
     }
 
     function testCapPolicyTypehashVector() public pure {
         require(
-            BossHashes.capPolicyTypehash()
-                == 0x756a867c1261ed3605a2b661112ea5f8ee157e9c9184a885859941ac56d8cecc,
+            BossHashes.capPolicyTypehash() == 0x756a867c1261ed3605a2b661112ea5f8ee157e9c9184a885859941ac56d8cecc,
             "cap policy typehash"
         );
     }
@@ -26,13 +24,11 @@ contract OfferHashingTest {
         BossTypes.CapPolicy memory caps = _caps();
 
         require(
-            BossHashes.hashServiceOffer(offer)
-                == 0x79a282dc16a82c88b59ba0afceb6a41a1964073787b68241da04a8054d900716,
+            BossHashes.hashServiceOffer(offer) == 0x79a282dc16a82c88b59ba0afceb6a41a1964073787b68241da04a8054d900716,
             "offer hash"
         );
         require(
-            BossHashes.hashCapPolicy(caps)
-                == 0xb1a02d892b7e418b8df34c3c87238c36f0d59e203c47040ee4783a9234c97151,
+            BossHashes.hashCapPolicy(caps) == 0xb1a02d892b7e418b8df34c3c87238c36f0d59e203c47040ee4783a9234c97151,
             "cap hash"
         );
     }
@@ -57,15 +53,11 @@ contract OfferHashingTest {
     }
 
     function testEip712OfferDigestVector() public pure {
-        bytes32 domainSeparator = BossHashes.domainSeparator(
-            314159,
-            0x7777777777777777777777777777777777777777
-        );
+        bytes32 domainSeparator = BossHashes.domainSeparator(314159, 0x7777777777777777777777777777777777777777);
         bytes32 offerHash = BossHashes.hashServiceOffer(_offer());
 
         require(
-            domainSeparator == 0x170b18a58f0508dd9afa228ec9cdcc6bc943e8cca92cda399085c305c6236298,
-            "domain separator"
+            domainSeparator == 0x170b18a58f0508dd9afa228ec9cdcc6bc943e8cca92cda399085c305c6236298, "domain separator"
         );
         require(
             BossHashes.hashTypedData(domainSeparator, offerHash)
@@ -86,15 +78,9 @@ contract OfferHashingTest {
             nonce: 1
         });
         bytes32 claimHash = BossHashes.hashUsageClaim(subscriptionId, claim);
-        bytes32 domainSeparator = BossHashes.domainSeparator(
-            314159,
-            0x7777777777777777777777777777777777777777
-        );
+        bytes32 domainSeparator = BossHashes.domainSeparator(314159, 0x7777777777777777777777777777777777777777);
 
-        require(
-            claimHash == 0x77bb1cfdde88a78d6e025654f2198b007f9271b766f05d78a75e8dadf369f7f4,
-            "claim hash"
-        );
+        require(claimHash == 0x77bb1cfdde88a78d6e025654f2198b007f9271b766f05d78a75e8dadf369f7f4, "claim hash");
         require(
             BossHashes.hashTypedData(domainSeparator, claimHash)
                 == 0xc9c9a4ba9f1c8b164cf49058ab260737f48a29de6860d5b88431ca0746e92559,

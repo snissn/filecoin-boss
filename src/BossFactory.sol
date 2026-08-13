@@ -53,9 +53,8 @@ contract BossFactory {
         bytes calldata accountCreationCode
     ) external view returns (address account) {
         bytes32 key = accountKey(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion);
-        bytes memory initCode = _accountInitCode(
-            accountCreationCode, owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion
-        );
+        bytes memory initCode =
+            _accountInitCode(accountCreationCode, owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion);
         account = _predict(key, keccak256(initCode));
     }
 
@@ -74,8 +73,7 @@ contract BossFactory {
         if (account != address(0)) return account;
 
         bytes memory initCode = abi.encodePacked(
-            accountCreationCode,
-            abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
+            accountCreationCode, abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
         );
         address predicted = _predict(key, keccak256(initCode));
         assembly ("memory-safe") {
@@ -98,8 +96,7 @@ contract BossFactory {
     ) private view returns (bytes memory initCode) {
         _requireCanonicalCreationCode(accountCreationCode);
         initCode = abi.encodePacked(
-            accountCreationCode,
-            abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
+            accountCreationCode, abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
         );
     }
 

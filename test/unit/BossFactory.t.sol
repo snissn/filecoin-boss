@@ -43,31 +43,20 @@ contract BossFactoryTest {
         BossFactory factory = new BossFactory();
         bytes memory creationCode = _creationCode();
         bytes32 expectedKey = factory.accountKey(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION);
-        address predicted = factory.predictAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-        );
+        address predicted =
+            factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
         bytes32 initCodeHash = keccak256(
-            abi.encodePacked(
-                creationCode,
-                abi.encode(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION)
-            )
+            abi.encodePacked(creationCode, abi.encode(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION))
         );
         address manuallyPredicted = address(
-            uint160(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(bytes1(0xff), address(factory), expectedKey, initCodeHash)
-                    )
-                )
-            )
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(factory), expectedKey, initCodeHash))))
         );
         require(predicted == manuallyPredicted, "manual CREATE2 parity");
         require(predicted.code.length == 0, "predicted address initially empty");
 
         vm.recordLogs();
-        address account = factory.createAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-        );
+        address account =
+            factory.createAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
         VmFactory.Log[] memory logs = vm.getRecordedLogs();
 
         require(account == predicted, "prediction parity");
@@ -106,8 +95,7 @@ contract BossFactoryTest {
         _mustFailCreate(factory, truncated);
 
         bytes memory argumentInjected = abi.encodePacked(
-            creationCode,
-            abi.encode(address(0xBAD), FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION)
+            creationCode, abi.encode(address(0xBAD), FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION)
         );
         _mustFailPredict(factory, argumentInjected);
         _mustFailCreate(factory, argumentInjected);
@@ -116,12 +104,10 @@ contract BossFactoryTest {
     function testCreateIsIdempotent() public {
         BossFactory factory = new BossFactory();
         bytes memory creationCode = _creationCode();
-        address first = factory.createAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-        );
-        address second = factory.createAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-        );
+        address first =
+            factory.createAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
+        address second =
+            factory.createAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
 
         require(first == second, "idempotent address");
         require(first.code.length != 0, "idempotent code");
@@ -130,9 +116,8 @@ contract BossFactoryTest {
     function testEveryAuthorityAndRegistryInputAffectsAddress() public {
         BossFactory factory = new BossFactory();
         bytes memory creationCode = _creationCode();
-        address base = factory.predictAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-        );
+        address base =
+            factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
 
         require(
             base
@@ -143,23 +128,17 @@ contract BossFactoryTest {
         );
         require(
             base
-                != factory.predictAccount(
-                    OWNER, address(0xF22E), SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode
-                ),
+                != factory.predictAccount(OWNER, address(0xF22E), SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode),
             "pay affects address"
         );
         require(
             base
-                != factory.predictAccount(
-                    OWNER, FILECOIN_PAY, address(0x5200), ADAPTER_REGISTRY, VERSION, creationCode
-                ),
+                != factory.predictAccount(OWNER, FILECOIN_PAY, address(0x5200), ADAPTER_REGISTRY, VERSION, creationCode),
             "service registry affects address"
         );
         require(
             base
-                != factory.predictAccount(
-                    OWNER, FILECOIN_PAY, SERVICE_REGISTRY, address(0xADA8), VERSION, creationCode
-                ),
+                != factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, address(0xADA8), VERSION, creationCode),
             "adapter registry affects address"
         );
     }
@@ -247,16 +226,14 @@ contract BossFactoryTest {
             caller,
             address(factory),
             abi.encodeCall(
-                BossFactory.createAccount,
-                (OWNER, FILECOIN_PAY, address(0), ADAPTER_REGISTRY, VERSION, creationCode)
+                BossFactory.createAccount, (OWNER, FILECOIN_PAY, address(0), ADAPTER_REGISTRY, VERSION, creationCode)
             )
         );
         _mustFail(
             caller,
             address(factory),
             abi.encodeCall(
-                BossFactory.createAccount,
-                (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, address(0), VERSION, creationCode)
+                BossFactory.createAccount, (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, address(0), VERSION, creationCode)
             )
         );
         _mustFail(
@@ -271,9 +248,8 @@ contract BossFactoryTest {
 
     function testAccountHasNoInitializationOwnershipTransferOrUpgradeSurface() public {
         BossFactory factory = new BossFactory();
-        address account = factory.createAccount(
-            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, _creationCode()
-        );
+        address account =
+            factory.createAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, _creationCode());
 
         _mustFailRaw(
             account,

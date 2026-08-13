@@ -33,14 +33,7 @@ contract BossFactory {
     ) public pure returns (bytes32) {
         _validate(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion);
         return keccak256(
-            abi.encode(
-                "FILECOIN_BOSS_ACCOUNT_V1",
-                owner,
-                filecoinPay,
-                serviceRegistry,
-                adapterRegistry,
-                accountVersion
-            )
+            abi.encode("FILECOIN_BOSS_ACCOUNT_V1", owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
         );
     }
 
@@ -58,13 +51,7 @@ contract BossFactory {
                 abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
             )
         );
-        account = address(
-            uint160(
-                uint256(
-                    keccak256(abi.encodePacked(bytes1(0xff), address(this), key, initCodeHash))
-                )
-            )
-        );
+        account = address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), key, initCodeHash)))));
     }
 
     function createAccount(
@@ -78,26 +65,13 @@ contract BossFactory {
         account = accountFor[key];
         if (account != address(0)) return account;
 
-        address predicted = predictAccount(
-            owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion
-        );
-        account = address(
-            new BossAccount{salt: key}(
-                owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion
-            )
-        );
+        address predicted = predictAccount(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion);
+        account =
+            address(new BossAccount{salt: key}(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion));
         if (account != predicted) revert UnexpectedDeploymentAddress(predicted, account);
 
         accountFor[key] = account;
-        emit BossAccountCreated(
-            owner,
-            account,
-            filecoinPay,
-            serviceRegistry,
-            adapterRegistry,
-            accountVersion,
-            key
-        );
+        emit BossAccountCreated(owner, account, filecoinPay, serviceRegistry, adapterRegistry, accountVersion, key);
     }
 
     function _validate(

@@ -1,0 +1,47 @@
+name: Generate A8 artifacts once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/a8-generate-artifacts
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-10-bundles-state-view-artifacts
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Verify Filecoin Pay source lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Generate exact artifacts
+        run: scripts/generate-contract-artifacts.sh
+
+      - name: Commit generated files and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/a8-generate-artifacts .github/workflows/generate-a8-artifacts-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "chore: generate Boss contract artifacts"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

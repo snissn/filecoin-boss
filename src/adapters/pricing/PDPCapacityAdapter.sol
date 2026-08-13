@@ -51,7 +51,7 @@ contract PDPCapacityAdapter is IBossPricingAdapter {
         );
         quote = BossTypes.RateQuote({
             ratePerEpoch: ratePerEpoch,
-            validThroughEpoch: type(uint64).max,
+            validThroughEpoch: 0,
             billable: billable,
             quoteHash: quoteHash,
             note: "approximate raw bytes; account-owned quote TTL"

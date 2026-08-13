@@ -28,7 +28,7 @@ contract PDPCapacityAdapterTest {
         BossTypes.RateQuote memory first = adapter.quoteRate(resource, _pricingData());
 
         require(first.billable, "billable");
-        require(first.validThroughEpoch == type(uint64).max, "adapter chose ttl");
+        require(first.validThroughEpoch == 0, "adapter validity is not neutral");
         require(first.quoteHash != bytes32(0), "quote hash");
 
         resource.statusHash = keccak256("state-2");
@@ -56,7 +56,7 @@ contract PDPCapacityAdapterTest {
 
         require(!quote.billable, "unavailable billable");
         require(quote.ratePerEpoch == 0, "unavailable rate");
-        require(quote.validThroughEpoch == type(uint64).max, "adapter chose unavailable ttl");
+        require(quote.validThroughEpoch == 0, "unavailable adapter validity is not neutral");
         require(quote.quoteHash != bytes32(0), "unavailable quote hash");
     }
 

@@ -123,11 +123,6 @@ contract PDPCapacityLifecycleTest {
         require(subscription.acceptedRatePerEpoch == ONE_TIB_RATE * 2, "accepted rate");
         require(subscription.quoteValidThroughEpoch == 115, "refreshed ttl");
 
-        (uint64 quoteEpoch, bytes32 resourceStateHash, bytes32 quoteHash) = account.capacityQuoteState(subscriptionId);
-        require(quoteEpoch == 105, "quote epoch");
-        require(resourceStateHash != bytes32(0), "resource state hash");
-        require(quoteHash != bytes32(0), "quote hash");
-
         vm.prank(address(0xD00D));
         account.syncRate(subscriptionId);
         require(pay.getRail(railId).paymentRate == ONE_TIB_RATE * 2, "same-state sync changed rate");
@@ -206,6 +201,31 @@ contract PDPCapacityLifecycleTest {
         account.syncRate(activeId);
         account.resume(activeId);
         require(account.getSubscription(activeId).state == BossTypes.SubscriptionState.ACTIVE, "resume failed");
+    }
+
+    function testSignedOfferTtlOwnsExpiryWhileAdapterQuoteIsStable() public {
+        BossTypes.AcceptanceInput memory shortTtl = _input(7, type(uint256).max);
+        (bytes32 shortId,) = account.acceptOffer(shortTtl);
+
+        BossTypes.AcceptanceInput memory longTtl = _input(8, type(uint256).max);
+        longTtl.offer.quoteTtlEpochs = QUOTE_TTL * 2;
+        longTtl.providerSignature = _signOffer(longTtl.offer);
+        (bytes32 longId,) = account.acceptOffer(longTtl);
+
+        require(account.getSubscription(shortId).quoteValidThroughEpoch == 110, "short signed ttl");
+        require(account.getSubscription(longId).quoteValidThroughEpoch == 120, "long signed ttl");
+        require(shortTtl.offer.pricingDataHash == longTtl.offer.pricingDataHash, "pricing bytes changed");
+
+        BossTypes.ResourceStatus memory resource =
+            resourceAdapter.inspect(shortTtl.resource, address(this), shortTtl.resourceData);
+        BossTypes.RateQuote memory shortQuote = pricingAdapter.quoteRate(resource, shortTtl.pricingData);
+        BossTypes.RateQuote memory longQuote = pricingAdapter.quoteRate(resource, longTtl.pricingData);
+        require(shortQuote.quoteHash == longQuote.quoteHash, "adapter quote depends on ttl");
+        require(shortQuote.validThroughEpoch == 0, "adapter selected ttl");
+    }
+
+    function testBossAccountKeepsOneKiBRuntimeMargin() public view {
+        require(address(account).code.length <= 23_552, "BossAccount has less than 1 KiB EIP-170 margin");
     }
 
     function _input(uint256 nonce, uint256 maxRate) private returns (BossTypes.AcceptanceInput memory input) {

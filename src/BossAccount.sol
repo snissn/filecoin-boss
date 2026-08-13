@@ -111,9 +111,6 @@ contract BossAccount is IFilecoinPayValidator {
     mapping(bytes32 subscriptionId => BossTypes.ResourceRef resource) private _resourceBySubscription;
     mapping(bytes32 subscriptionId => bytes resourceData) private _resourceDataBySubscription;
     mapping(bytes32 subscriptionId => uint64 quoteTtlEpochs) private _capacityQuoteTtlEpochs;
-    mapping(bytes32 subscriptionId => uint64 quoteEpoch) private _capacityQuoteEpoch;
-    mapping(bytes32 subscriptionId => bytes32 statusHash) private _capacityResourceStatusHash;
-    mapping(bytes32 subscriptionId => bytes32 quoteHash) private _capacityQuoteHash;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _consumedClaims;
     mapping(bytes32 subscriptionId => mapping(uint256 nonce => bool consumed)) private _consumedUsageNonces;
     mapping(bytes32 subscriptionId => mapping(uint256 window => uint256 gross)) private _usageGrossByWindow;
@@ -241,9 +238,6 @@ contract BossAccount is IFilecoinPayValidator {
             _resourceBySubscription[subscriptionId] = input.resource;
             _resourceDataBySubscription[subscriptionId] = input.resourceData;
             _capacityQuoteTtlEpochs[subscriptionId] = offer.quoteTtlEpochs;
-            _capacityQuoteEpoch[subscriptionId] = acceptedEpoch;
-            _capacityResourceStatusHash[subscriptionId] = resource.statusHash;
-            _capacityQuoteHash[subscriptionId] = quote.quoteHash;
         }
 
         emit SubscriptionAccepted(
@@ -367,28 +361,9 @@ contract BossAccount is IFilecoinPayValidator {
         );
         subscription.acceptedRatePerEpoch = quote.ratePerEpoch;
         subscription.quoteValidThroughEpoch = validThrough;
-        _capacityQuoteEpoch[subscriptionId] = quoteEpoch;
-        _capacityResourceStatusHash[subscriptionId] = resource.statusHash;
-        _capacityQuoteHash[subscriptionId] = quote.quoteHash;
 
         emit RateSynchronized(
             subscriptionId, oldRate, quote.ratePerEpoch, quoteEpoch, validThrough, resource.statusHash, quote.quoteHash
-        );
-    }
-
-    function capacityQuoteState(bytes32 subscriptionId)
-        external
-        view
-        returns (uint64 quoteEpoch, bytes32 resourceStatusHash, bytes32 quoteHash)
-    {
-        BossTypes.Subscription storage subscription = _requireSubscription(subscriptionId);
-        if (subscription.billingKind != BossTypes.BillingKind.STREAM_CAPACITY) {
-            revert InvalidState(subscriptionId, subscription.state);
-        }
-        return (
-            _capacityQuoteEpoch[subscriptionId],
-            _capacityResourceStatusHash[subscriptionId],
-            _capacityQuoteHash[subscriptionId]
         );
     }
 
@@ -733,8 +708,7 @@ contract BossAccount is IFilecoinPayValidator {
         bool available = resource.exists && resource.attachable && resource.billable;
         bool unavailable = !resource.exists && !resource.attachable && !resource.billable;
         if (!available && !unavailable) revert InvalidResource();
-        if (quote.billable != available || quote.quoteHash == bytes32(0) || quote.validThroughEpoch != type(uint64).max)
-        {
+        if (quote.billable != available || quote.quoteHash == bytes32(0) || quote.validThroughEpoch != 0) {
             revert InvalidCapacityQuote();
         }
 
@@ -751,9 +725,7 @@ contract BossAccount is IFilecoinPayValidator {
         returns (uint64 validThrough)
     {
         if (!billable) return quoteEpoch;
-        uint256 candidate = uint256(quoteEpoch) + quoteTtlEpochs;
-        if (quoteTtlEpochs == 0 || candidate > type(uint64).max) revert InvalidCapacityQuote();
-        validThrough = uint64(candidate);
+        validThrough = quoteEpoch + quoteTtlEpochs;
         if (notAfterEpoch != 0 && notAfterEpoch < validThrough) validThrough = notAfterEpoch;
     }
 

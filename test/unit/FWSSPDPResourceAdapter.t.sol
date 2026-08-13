@@ -113,9 +113,7 @@ contract FWSSPDPResourceAdapterTest {
     }
 
     function testContextCommitsExactDeploymentTuple() public view {
-        bytes32 expected = keccak256(
-            abi.encode("FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1", FWSS_SERVICE, address(stateView))
-        );
+        bytes32 expected = keccak256(abi.encode("FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1", FWSS_SERVICE, address(stateView)));
         require(adapter.resourceContext() == expected, "deployment context");
         require(_resource().context == expected, "resource context");
     }
@@ -235,11 +233,7 @@ contract FWSSPDPResourceAdapterTest {
                 lastProvenEpoch: block.number
             })
         );
-        stateView.setDataSet(
-            DATA_SET_ID,
-            _info(PAYER, storageProvider),
-            IFWSSStateView.DataSetStatus.Active
-        );
+        stateView.setDataSet(DATA_SET_ID, _info(PAYER, storageProvider), IFWSSStateView.DataSetStatus.Active);
     }
 
     function _info(address payer, address storageProvider)

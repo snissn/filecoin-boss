@@ -95,9 +95,8 @@ contract FWSSResourceBindingTest {
     }
 
     function _input() private returns (BossTypes.AcceptanceInput memory input) {
-        bytes memory pricingData = abi.encode(
-            FlatRateAdapter.FlatRateTerms({grossPricePerPeriod: 1_000, periodEpochs: 1_000})
-        );
+        bytes memory pricingData =
+            abi.encode(FlatRateAdapter.FlatRateTerms({grossPricePerPeriod: 1_000, periodEpochs: 1_000}));
         BossTypes.ServiceOffer memory offer = BossTypes.ServiceOffer({
             serviceId: SERVICE_ID,
             offerVersion: 1,

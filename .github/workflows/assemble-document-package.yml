@@ -1,0 +1,39 @@
+name: Assemble Filecoin Boss document package
+
+on:
+  push:
+    paths:
+      - ".doc-staging/READY"
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble exact source documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/archive
+          cat .doc-staging/spec/*.part > docs/FILECOIN_BOSS_SPEC_v0.2.md
+          cat .doc-staging/impl/*.part > docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0.1.md
+          cat .doc-staging/api/*.part > docs/FILECOIN_BOSS_API_AND_EVENT_DRAFT_v0.1.md
+          cat .doc-staging/test/*.part > docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0.1.md
+          cat .doc-staging/summary/*.part > docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
+          cat .doc-staging/diff/*.part > docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
+          cat .doc-staging/manifest/*.part > docs/manifest.json
+          cat .doc-staging/archive/*.part > docs/archive/FILECOIN_BOSS_SPEC_v0.1.md
+
+          rm -rf .doc-staging
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: publish complete Filecoin Boss specification package"
+          git push

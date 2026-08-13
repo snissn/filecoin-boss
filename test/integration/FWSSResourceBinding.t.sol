@@ -22,7 +22,6 @@ contract FWSSResourceBindingTest {
 
     uint256 internal constant DATA_SET_ID = 42;
     address internal constant FWSS_SERVICE = address(0xF55);
-    address internal constant PAYER = address(this);
     address internal constant PROVIDER = address(0xB0B);
     address internal constant BENEFICIARY = address(0xBEEF);
     bytes32 internal constant SERVICE_ID = keccak256("fwss-flat-service");
@@ -61,9 +60,9 @@ contract FWSSResourceBindingTest {
             address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://flat-pricing"
         );
 
-        account = new BossAccount(PAYER, address(pay), address(serviceRegistry), address(adapterRegistry), 1);
-        pay.setOperatorApproval(address(0), PAYER, address(account), true);
-        _setState(PAYER);
+        account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
+        pay.setOperatorApproval(address(0), address(this), address(account), true);
+        _setState(address(this));
     }
 
     function testBossAcceptsOnlyCanonicalFWSSResourceForRecordedPayer() public {

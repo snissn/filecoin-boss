@@ -19,6 +19,7 @@ contract FlatRateAdapter is IBossPricingAdapter {
         return 1;
     }
 
+    /// @dev The remainder is disclosed in `note`; v1 schedules no correction payment.
     function quoteRate(BossTypes.ResourceStatus calldata, bytes calldata pricingData)
         external
         pure

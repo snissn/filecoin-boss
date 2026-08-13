@@ -1,0 +1,282 @@
+name: A4 normative repair
+
+on:
+  push:
+    branches: [gpt56/issue-6-flat-streaming-lifecycle]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-6-flat-streaming-lifecycle
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+      - name: Apply bounded normative repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          account_path = Path("src/BossAccount.sol")
+          account = account_path.read_text()
+
+          account = replace_once(
+              account,
+              'import {BossTypes} from "./libraries/BossTypes.sol";\n\n'
+              '/// @notice Immutable user-owned account for independently bounded service rails.',
+              'import {BossTypes} from "./libraries/BossTypes.sol";\n\n'
+              'interface IERC1271 {\n'
+              '    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);\n'
+              '}\n\n'
+              '/// @notice Immutable user-owned account for independently bounded service rails.',
+              "ERC-1271 interface",
+          )
+          account = replace_once(
+              account,
+              '    uint256 private constant SECP256K1N_HALF = '
+              '0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;\n',
+              '    uint256 private constant SECP256K1N_HALF = '
+              '0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;\n'
+              '    bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;\n',
+              "ERC-1271 magic value",
+          )
+          account = replace_once(
+              account,
+              '        if (input.resource.chainId != block.chainid) revert InvalidResource();\n'
+              '        BossTypes.ResourceStatus memory resource =\n'
+              '            IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, payer, input.resourceData);\n'
+              '        if (\n'
+              '            !resource.exists || !resource.attachable || !resource.billable || resource.payer != payer\n'
+              '                || resource.resourceKey == bytes32(0)\n'
+              '        ) revert InvalidResource();',
+              '        if (\n'
+              '            input.resource.kind != BossTypes.ResourceKind.FWSS_PDP_DATASET\n'
+              '                || input.resource.chainId != block.chainid || input.resource.anchor == address(0)\n'
+              '                || input.resource.context != bytes32(0)\n'
+              '        ) revert InvalidResource();\n'
+              '        bytes32 canonicalResourceKey = BossHashes.hashResource(input.resource);\n'
+              '        BossTypes.ResourceStatus memory resource =\n'
+              '            IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, payer, input.resourceData);\n'
+              '        if (\n'
+              '            !resource.exists || !resource.attachable || !resource.billable || resource.payer != payer\n'
+              '                || resource.resourceKey != canonicalResourceKey\n'
+              '        ) revert InvalidResource();',
+              "canonical FWSS resource binding",
+          )
+          account = replace_once(
+              account,
+              '        if (\n'
+              '            _recover(activationAckDigest(subscriptionId, provisioningHash), providerSignature)\n'
+              '                != _offerSigningKey[subscriptionId]\n'
+              '        ) {\n'
+              '            revert InvalidProviderSignature();\n'
+              '        }',
+              '        if (\n'
+              '            !_isValidSignature(\n'
+              '                _offerSigningKey[subscriptionId],\n'
+              '                activationAckDigest(subscriptionId, provisioningHash),\n'
+              '                providerSignature\n'
+              '            )\n'
+              '        ) revert InvalidProviderSignature();',
+              "activation ERC-1271 validation",
+          )
+          account = replace_once(
+              account,
+              '        IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, subscription.acceptedRatePerEpoch, 0);\n'
+              '        uint64 activatedEpoch = _epoch();',
+              '        uint256 currentEpoch = block.number;\n'
+              '        (,,,, uint256 finalSettledEpoch,) =\n'
+              '            IFilecoinPayV1(filecoinPay).settleRail(subscription.railId, currentEpoch);\n'
+              '        if (finalSettledEpoch != currentEpoch) {\n'
+              '            revert RailNotCurrent(subscription.railId, currentEpoch, finalSettledEpoch);\n'
+              '        }\n'
+              '        IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, subscription.acceptedRatePerEpoch, 0);\n'
+              '        uint64 activatedEpoch = _epoch();',
+              "prospective activation settlement",
+          )
+          account = replace_once(
+              account,
+              '        if (_recover(digest, providerSignature) != offer.signingKey) revert InvalidProviderSignature();',
+              '        if (!_isValidSignature(offer.signingKey, digest, providerSignature)) revert InvalidProviderSignature();',
+              "offer ERC-1271 validation",
+          )
+          account = replace_once(
+              account,
+              '                || initialFixedBudget > caps.maxFixedLockup || initialFixedBudget > offer.providerMaxFixedLockup\n'
+              '                || offer.requiredLockupPeriod > caps.maxLockupPeriod\n',
+              '                || initialFixedBudget > caps.maxFixedLockup || initialFixedBudget > offer.providerMaxFixedLockup\n'
+              '                || offer.requiredLockupPeriod > caps.maxLockupPeriod || caps.chargeWindowEpochs != 0\n',
+              "flat cap shape",
+          )
+          account = replace_once(
+              account,
+              '    function _recover(bytes32 digest, bytes calldata signature) private pure returns (address signer) {\n',
+              '    function _isValidSignature(address signer, bytes32 digest, bytes calldata signature)\n'
+              '        private\n'
+              '        view\n'
+              '        returns (bool)\n'
+              '    {\n'
+              '        if (signer.code.length == 0) return _recover(digest, signature) == signer;\n\n'
+              '        (bool success, bytes memory result) = signer.staticcall{gas: 50_000}(\n'
+              '            abi.encodeWithSelector(IERC1271.isValidSignature.selector, digest, signature)\n'
+              '        );\n'
+              '        return success && result.length >= 32 && abi.decode(result, (bytes4)) == ERC1271_MAGIC_VALUE;\n'
+              '    }\n\n'
+              '    function _recover(bytes32 digest, bytes calldata signature) private pure returns (address signer) {\n',
+              "signature helper",
+          )
+          account_path.write_text(account)
+
+          test_path = Path("test/unit/BossAccountFlatLifecycle.t.sol")
+          test = test_path.read_text()
+          test = replace_once(
+              test,
+              'contract MockFlatResourceAdapter is IBossResourceAdapter {\n'
+              '    bool public valid = true;\n\n'
+              '    function setValid(bool valid_) external {\n'
+              '        valid = valid_;\n'
+              '    }\n',
+              'contract MockFlatResourceAdapter is IBossResourceAdapter {\n'
+              '    bool public valid = true;\n'
+              '    bytes32 public resourceKeyOverride;\n\n'
+              '    function setValid(bool valid_) external {\n'
+              '        valid = valid_;\n'
+              '    }\n\n'
+              '    function setResourceKeyOverride(bytes32 resourceKeyOverride_) external {\n'
+              '        resourceKeyOverride = resourceKeyOverride_;\n'
+              '    }\n',
+              "resource alias control",
+          )
+          test = replace_once(
+              test,
+              '            resourceKey: BossHashes.hashResource(resource),',
+              '            resourceKey: resourceKeyOverride == bytes32(0)\n'
+              '                ? BossHashes.hashResource(resource)\n'
+              '                : resourceKeyOverride,',
+              "resource alias output",
+          )
+          test = replace_once(
+              test,
+              '}\n\ncontract MockFilecoinPayV1 is IFilecoinPayV1 {',
+              '}\n\n'
+              'contract MockERC1271Signer {\n'
+              '    bytes4 private constant MAGIC_VALUE = 0x1626ba7e;\n'
+              '    bytes32 public validDigest;\n\n'
+              '    function setValidDigest(bytes32 digest) external {\n'
+              '        validDigest = digest;\n'
+              '    }\n\n'
+              '    function isValidSignature(bytes32 digest, bytes calldata) external view returns (bytes4) {\n'
+              '        return digest == validDigest ? MAGIC_VALUE : bytes4(0xffffffff);\n'
+              '    }\n'
+              '}\n\n'
+              '/// @dev Minimal semantic harness, locked to Filecoin Pay V1 commit\n'
+              '/// 04ded6af6c15c4b5d98545f393dc656004d4aede; it is not production Pay code.\n'
+              'contract MockFilecoinPayV1 is IFilecoinPayV1 {',
+              "ERC-1271 and Pay source lock",
+          )
+          test = replace_once(
+              test,
+              '        _mustFail(address(account), abi.encodeCall(BossAccount.activate, (subscriptionId)));\n\n'
+              '        bytes32 provisioningHash = keccak256("provisioned");',
+              '        _mustFail(address(account), abi.encodeCall(BossAccount.activate, (subscriptionId)));\n\n'
+              '        vm.roll(105);\n'
+              '        bytes32 provisioningHash = keccak256("provisioned");',
+              "delayed activation",
+          )
+          test = replace_once(
+              test,
+              '        require(pay.getRail(railId).paymentRate == 10, "activated rate");',
+              '        require(pay.getRail(railId).paymentRate == 10, "activated rate");\n'
+              '        require(pay.getRail(railId).settledUpTo == 105, "activation settles prospectively");',
+              "activation cursor assertion",
+          )
+          test = replace_once(
+              test,
+              '    function testInvalidResourceAndFlatPricingFailuresAreClosed() public {',
+              '    function testCanonicalFwssBindingAndFlatCapShapeFailClosed() public {\n'
+              '        BossTypes.AcceptanceInput memory input =\n'
+              '            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 10);\n\n'
+              '        resourceAdapter.setResourceKeyOverride(bytes32(uint256(1)));\n'
+              '        _mustFailAccept(input);\n\n'
+              '        resourceAdapter.setResourceKeyOverride(bytes32(0));\n'
+              '        input =\n'
+              '            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 11);\n'
+              '        input.resource.kind = BossTypes.ResourceKind.GENERIC_CONTENT_ROOT;\n'
+              '        _mustFailAccept(input);\n\n'
+              '        input.resource.kind = BossTypes.ResourceKind.FWSS_PDP_DATASET;\n'
+              '        input.resource.context = keccak256("nonzero-context");\n'
+              '        _mustFailAccept(input);\n\n'
+              '        input.resource.context = bytes32(0);\n'
+              '        input.caps.chargeWindowEpochs = 1;\n'
+              '        _mustFailAccept(input);\n'
+              '    }\n\n'
+              '    function testERC1271ProviderOfferAndActivationSignatures() public {\n'
+              '        MockERC1271Signer contractSigner = new MockERC1271Signer();\n'
+              '        vm.prank(PROVIDER);\n'
+              '        serviceRegistry.setSigningKey(address(contractSigner), true);\n\n'
+              '        BossTypes.AcceptanceInput memory input = _input(\n'
+              '            BossTypes.ActivationKind.PROVIDER_ACK,\n'
+              '            BossTypes.TerminationBillingKind.PAY_THROUGH_FILECOIN_PAY_END,\n'
+              '            1_000,\n'
+              '            12\n'
+              '        );\n'
+              '        input.offer.signingKey = address(contractSigner);\n'
+              '        bytes32 offerDigest = BossHashes.hashTypedData(\n'
+              '            BossHashes.domainSeparator(block.chainid, address(account)), BossHashes.hashServiceOffer(input.offer)\n'
+              '        );\n'
+              '        contractSigner.setValidDigest(offerDigest);\n'
+              '        input.providerSignature = hex"01";\n'
+              '        (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);\n\n'
+              '        bytes32 provisioningHash = keccak256("contract-provisioned");\n'
+              '        contractSigner.setValidDigest(account.activationAckDigest(subscriptionId, provisioningHash));\n'
+              '        account.acknowledgeActivation(subscriptionId, provisioningHash, hex"02");\n'
+              '        account.activate(subscriptionId);\n\n'
+              '        require(\n'
+              '            account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.ACTIVE,\n'
+              '            "contract signer active"\n'
+              '        );\n'
+              '        require(pay.getRail(railId).paymentRate == 10, "contract signer rate");\n'
+              '    }\n\n'
+              '    function testInvalidResourceAndFlatPricingFailuresAreClosed() public {',
+              "normative guard tests",
+          )
+          test = replace_once(
+              test,
+              '            kind: BossTypes.ResourceKind.GENERIC_CONTENT_ROOT,',
+              '            kind: BossTypes.ResourceKind.FWSS_PDP_DATASET,',
+              "FWSS resource kind",
+          )
+          test = replace_once(
+              test,
+              '            context: keccak256("resource-context")',
+              '            context: bytes32(0)',
+              "zero FWSS context",
+          )
+          test_path.write_text(test)
+          PY
+
+          mkdir -p test/integration
+          git mv test/unit/BossAccountFlatLifecycle.t.sol test/integration/FilecoinPayV1Acceptance.t.sol
+          forge fmt
+          forge build --sizes
+          forge test -vvv
+          rm .github/workflows/a4-normative-repair-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: close A4 normative acceptance gaps"
+          git push origin HEAD:gpt56/issue-6-flat-streaming-lifecycle

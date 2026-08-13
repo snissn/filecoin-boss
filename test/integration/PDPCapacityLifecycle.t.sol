@@ -210,11 +210,7 @@ contract PDPCapacityLifecycleTest {
 
     function _input(uint256 nonce, uint256 maxRate) private returns (BossTypes.AcceptanceInput memory input) {
         bytes memory pricingData = abi.encode(
-            PDPCapacityAdapter.CapacityTerms({
-                grossPricePerTiBPerPeriod: PRICE_PER_TIB,
-                periodEpochs: PERIOD_EPOCHS,
-                quoteTtlEpochs: QUOTE_TTL
-            })
+            PDPCapacityAdapter.CapacityTerms({grossPricePerTiBPerPeriod: PRICE_PER_TIB, periodEpochs: PERIOD_EPOCHS})
         );
         BossTypes.ServiceOffer memory offer = BossTypes.ServiceOffer({
             serviceId: SERVICE_ID,

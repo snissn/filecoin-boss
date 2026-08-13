@@ -1,0 +1,70 @@
+name: Publish qualified A8 source only
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/workflows/a8-publish-source-only.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-10-bundles-state-view-artifacts
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Verify source and staging boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          test "$(git merge-base 3a3f9f94f041ea4fc67384b0f1d849cdf8b6443b HEAD)" = "3a3f9f94f041ea4fc67384b0f1d849cdf8b6443b"
+          git diff --name-only 3a3f9f94f041ea4fc67384b0f1d849cdf8b6443b..HEAD \
+            | grep -Ev '^\.github/(a8-closeout-|pathlib\.py$|sitecustomize\.py$|workflows/a8-)' \
+            | test "$(cat | wc -l)" -eq 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: a8-qualified-candidate
+          path: /tmp/a8-qualified
+          github-token: ${{ github.token }}
+          run-id: 31753440241
+
+      - name: Verify and stage exact candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/a8-qualified
+          sed 's#/tmp/a8-qualified/##' SHA256SUMS | sha256sum -c -
+          test "$(cat source-head.txt)" = "3a3f9f94f041ea4fc67384b0f1d849cdf8b6443b"
+          cd "$GITHUB_WORKSPACE"
+          tar -xzf /tmp/a8-qualified/files.tar.gz
+          rm -rf .github/__pycache__
+          while IFS= read -r path; do
+            case "$path" in
+              .github/workflows/*|"") ;;
+              *) rm -f -- "$path" ;;
+            esac
+          done < /tmp/a8-qualified/deletions.txt
+          git checkout HEAD -- .github/workflows
+          git add -A
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only | grep '^\.github/workflows/' || true)"
+          test -z "$(git diff --cached --name-only | grep '^\.github/__pycache__/' || true)"
+
+      - name: Publish qualified source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: complete A8 indexer and claim surface"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

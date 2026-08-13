@@ -108,7 +108,6 @@ contract BossAccount is IFilecoinPayValidator {
     mapping(bytes32 subscriptionId => bool acknowledged) private _activationAcknowledged;
     mapping(bytes32 subscriptionId => bytes pricingData) private _pricingDataBySubscription;
     mapping(bytes32 subscriptionId => BossTypes.ResourceRef resource) private _resourceBySubscription;
-    mapping(bytes32 subscriptionId => uint64 quoteTtlEpochs) private _capacityQuoteTtlEpochs;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _consumedClaims;
     mapping(bytes32 subscriptionId => mapping(uint256 nonce => bool consumed)) private _consumedUsageNonces;
     mapping(bytes32 subscriptionId => mapping(uint256 window => uint256 gross)) private _usageGrossByWindow;
@@ -219,6 +218,7 @@ contract BossAccount is IFilecoinPayValidator {
             acceptedEpoch: acceptedEpoch,
             activatedEpoch: active ? acceptedEpoch : 0,
             quoteValidThroughEpoch: quoteValidThrough,
+            quoteTtlEpochs: offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY ? offer.quoteTtlEpochs : 0,
             pausedEpoch: 0,
             terminationRequestedEpoch: 0,
             payEndEpoch: 0,
@@ -235,7 +235,6 @@ contract BossAccount is IFilecoinPayValidator {
         }
         if (offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY) {
             _resourceBySubscription[subscriptionId] = input.resource;
-            _capacityQuoteTtlEpochs[subscriptionId] = offer.quoteTtlEpochs;
         }
 
         emit SubscriptionAccepted(
@@ -340,7 +339,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         uint64 quoteEpoch = _epoch();
         uint64 validThrough = _capacityValidThrough(
-            quoteEpoch, _capacityQuoteTtlEpochs[subscriptionId], subscription.caps.notAfterEpoch, quote.billable
+            quoteEpoch, subscription.quoteTtlEpochs, subscription.caps.notAfterEpoch, quote.billable
         );
         subscription.acceptedRatePerEpoch = quote.ratePerEpoch;
         subscription.quoteValidThroughEpoch = validThrough;

@@ -265,6 +265,8 @@ contract PDPCapacityLifecycleTest {
 
         require(account.getSubscription(shortId).quoteValidThroughEpoch == 110, "short signed ttl");
         require(account.getSubscription(longId).quoteValidThroughEpoch == 120, "long signed ttl");
+        require(account.getSubscription(shortId).quoteTtlEpochs == QUOTE_TTL, "short ttl not discoverable");
+        require(account.getSubscription(longId).quoteTtlEpochs == QUOTE_TTL * 2, "long ttl not discoverable");
         require(shortTtl.offer.pricingDataHash == longTtl.offer.pricingDataHash, "pricing bytes changed");
 
         BossTypes.ResourceStatus memory resource =

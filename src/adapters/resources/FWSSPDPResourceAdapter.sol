@@ -58,32 +58,74 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
                 || resource.anchor != pdpVerifier || resource.context != bytes32(0)
         ) revert InvalidResource();
 
+        bytes32 resourceKey = BossHashes.hashResource(resource);
         uint256 dataSetId = resource.resourceId;
         IPDPVerifierView pdp = IPDPVerifierView(pdpVerifier);
-        if (!pdp.dataSetLive(dataSetId)) revert DataSetNotLive(dataSetId);
+        IFWSSStateView stateView = IFWSSStateView(fwssStateView);
 
-        address listener = pdp.getDataSetListener(dataSetId);
+        bool live;
+        try pdp.dataSetLive(dataSetId) returns (bool observedLive) {
+            live = observedLive;
+        } catch {
+            return _unavailable(resourceKey);
+        }
+        if (!live) revert DataSetNotLive(dataSetId);
+
+        address listener;
+        try pdp.getDataSetListener(dataSetId) returns (address observedListener) {
+            listener = observedListener;
+        } catch {
+            return _unavailable(resourceKey);
+        }
         if (listener != fwssService) revert ListenerMismatch(fwssService, listener);
 
-        IFWSSStateView stateView = IFWSSStateView(fwssStateView);
-        if (stateView.getDataSetStatus(dataSetId) != IFWSSStateView.DataSetStatus.Active) {
-            revert DataSetNotActive(dataSetId);
+        IFWSSStateView.DataSetStatus dataSetStatus;
+        try stateView.getDataSetStatus(dataSetId) returns (IFWSSStateView.DataSetStatus observedStatus) {
+            dataSetStatus = observedStatus;
+        } catch {
+            return _unavailable(resourceKey);
         }
+        if (dataSetStatus != IFWSSStateView.DataSetStatus.Active) revert DataSetNotActive(dataSetId);
 
-        IFWSSStateView.DataSetInfoView memory info = stateView.getDataSet(dataSetId);
+        IFWSSStateView.DataSetInfoView memory info;
+        try stateView.getDataSet(dataSetId) returns (IFWSSStateView.DataSetInfoView memory observedInfo) {
+            info = observedInfo;
+        } catch {
+            return _unavailable(resourceKey);
+        }
         if (info.dataSetId != dataSetId || info.pdpRailId == 0 || info.pdpEndEpoch != 0) {
             revert InvalidDataSetRecord(dataSetId);
         }
         if (info.payer != expectedPayer) revert PayerMismatch(expectedPayer, info.payer);
 
-        (address storageProvider, address proposedProvider) = pdp.getDataSetStorageProvider(dataSetId);
+        address storageProvider;
+        address proposedProvider;
+        try pdp.getDataSetStorageProvider(dataSetId) returns (
+            address observedStorageProvider, address observedProposedProvider
+        ) {
+            storageProvider = observedStorageProvider;
+            proposedProvider = observedProposedProvider;
+        } catch {
+            return _unavailable(resourceKey);
+        }
         if (storageProvider == address(0) || storageProvider != info.serviceProvider) {
             revert StorageProviderMismatch(storageProvider, info.serviceProvider);
         }
 
-        uint256 leafCount = pdp.getDataSetLeafCount(dataSetId);
-        uint256 sizeInBytes = stateView.getDataSetSizeInBytes(leafCount);
-        bytes32 resourceKey = BossHashes.hashResource(resource);
+        uint256 leafCount;
+        try pdp.getDataSetLeafCount(dataSetId) returns (uint256 observedLeafCount) {
+            leafCount = observedLeafCount;
+        } catch {
+            return _unavailable(resourceKey);
+        }
+
+        uint256 sizeInBytes;
+        try stateView.getDataSetSizeInBytes(leafCount) returns (uint256 observedSizeInBytes) {
+            sizeInBytes = observedSizeInBytes;
+        } catch {
+            return _unavailable(resourceKey);
+        }
+
         bytes32 statusHash = keccak256(
             abi.encode(
                 "FILECOIN_BOSS_FWSS_PDP_STATUS_V1",
@@ -110,6 +152,19 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
             storageProvider: storageProvider,
             sizeInBytes: sizeInBytes,
             statusHash: statusHash
+        });
+    }
+
+    function _unavailable(bytes32 resourceKey) private pure returns (BossTypes.ResourceStatus memory status) {
+        status = BossTypes.ResourceStatus({
+            resourceKey: resourceKey,
+            exists: false,
+            attachable: false,
+            billable: false,
+            payer: address(0),
+            storageProvider: address(0),
+            sizeInBytes: 0,
+            statusHash: bytes32(0)
         });
     }
 }

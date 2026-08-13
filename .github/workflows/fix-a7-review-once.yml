@@ -1,0 +1,165 @@
+name: Fix A7 review findings once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-9-capped-metered-services
+    paths:
+      - .github/fix-a7-review-once
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-9-capped-metered-services
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Reject inactive intervals and unlimited metered caps
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"anchor mismatch ({count}): {old[:120]!r}")
+              return text.replace(old, new)
+
+          account = Path("src/BossAccount.sol")
+          text = account.read_text()
+          text = replace_once(
+              text,
+              "                || claim.fromEpoch < subscription.acceptedEpoch || claim.fromEpoch < subscription.lastUsageToEpoch\n",
+              "                || claim.fromEpoch < subscription.activatedEpoch || claim.fromEpoch < subscription.lastUsageToEpoch\n",
+          )
+          text = replace_once(
+              text,
+              """        if (
+            ratePerEpoch != 0 || caps.maxRatePerEpoch != 0 || offer.providerMaxRatePerEpoch != 0
+                || initialFixedBudget == 0 || caps.maxSingleCharge == 0 || caps.maxChargePerWindow == 0
+                || caps.lifetimeCapGross == 0 || caps.chargeWindowEpochs == 0
+        ) revert InvalidCaps();
+""",
+              """        if (
+            ratePerEpoch != 0 || caps.maxRatePerEpoch != 0 || offer.providerMaxRatePerEpoch != 0
+                || initialFixedBudget == 0 || caps.maxSingleCharge == 0 || caps.maxChargePerWindow == 0
+                || caps.lifetimeCapGross == 0 || caps.chargeWindowEpochs == 0
+                || BossTypes.isUnlimitedCap(caps.maxFixedLockup)
+                || BossTypes.isUnlimitedCap(caps.maxSingleCharge)
+                || BossTypes.isUnlimitedCap(caps.maxChargePerWindow)
+                || BossTypes.isUnlimitedCap(caps.lifetimeCapGross)
+        ) revert InvalidCaps();
+""",
+          )
+          account.write_text(text)
+
+          test = Path("test/unit/BossUsageClaims.t.sol")
+          text = test.read_text()
+          tests = '''    function testClaimsCannotCoverPreActivationOrPriorPausedEpochs() public {
+              BossTypes.AcceptanceInput memory input = _input(10 ether, 20 ether, 10 ether, 5 ether, 42);
+              input.offer.activationKind = BossTypes.ActivationKind.PROVIDER_ACK;
+              input.providerSignature = _signOffer(input.offer);
+              (bytes32 subscriptionId,) = account.acceptOffer(input);
+
+              vm.roll(120);
+              bytes32 provisioningHash = keccak256("metered-provisioned");
+              account.acknowledgeActivation(
+                  subscriptionId,
+                  provisioningHash,
+                  _sign(PROVIDER_KEY, account.activationAckDigest(subscriptionId, provisioningHash))
+              );
+              account.activate(subscriptionId);
+              vm.roll(140);
+
+              BossTypes.UsageClaim memory beforeActivation = _claim(42, 100, 110, TIB / 10);
+              _mustFailClaim(subscriptionId, beforeActivation, _signClaim(subscriptionId, beforeActivation));
+
+              BossTypes.UsageClaim memory active = _claim(43, 120, 130, TIB / 10);
+              require(
+                  account.submitUsageClaim(subscriptionId, active, _signClaim(subscriptionId, active)) != 0,
+                  "active-period claim rejected"
+              );
+
+              account.pause(subscriptionId);
+              vm.roll(160);
+              account.resume(subscriptionId);
+              vm.roll(180);
+
+              BossTypes.UsageClaim memory priorPeriod = _claim(44, 130, 140, TIB / 10);
+              _mustFailClaim(subscriptionId, priorPeriod, _signClaim(subscriptionId, priorPeriod));
+
+              BossTypes.UsageClaim memory currentPeriod = _claim(45, 160, 170, TIB / 10);
+              require(
+                  account.submitUsageClaim(
+                      subscriptionId, currentPeriod, _signClaim(subscriptionId, currentPeriod)
+                  ) != 0,
+                  "current-period claim rejected"
+              );
+          }
+
+          function testUnlimitedMeteredCapsFailClosed() public {
+              BossTypes.AcceptanceInput memory input = _input(3 ether, 20 ether, 10 ether, 5 ether, 50);
+              input.caps.maxFixedLockup = type(uint256).max;
+              input.offer.providerMaxFixedLockup = type(uint256).max;
+              input.providerSignature = _signOffer(input.offer);
+              _mustFailAccept(input);
+
+              input = _input(3 ether, 20 ether, 10 ether, 5 ether, 51);
+              input.caps.maxSingleCharge = type(uint256).max;
+              _mustFailAccept(input);
+
+              input = _input(3 ether, 20 ether, 10 ether, 5 ether, 52);
+              input.caps.maxChargePerWindow = type(uint256).max;
+              _mustFailAccept(input);
+
+              input = _input(3 ether, 20 ether, 10 ether, 5 ether, 53);
+              input.caps.lifetimeCapGross = type(uint256).max;
+              _mustFailAccept(input);
+          }
+
+'''
+          text = replace_once(
+              text,
+              "    function testZeroByteClaimIsConsumedWithoutPayment() public {\n",
+              tests + "    function testZeroByteClaimIsConsumedWithoutPayment() public {\n",
+          )
+          helper = '''    function _mustFailAccept(BossTypes.AcceptanceInput memory input) private {
+              (bool success,) = address(account).call(abi.encodeCall(BossAccount.acceptOffer, (input)));
+              require(!success, "invalid metered caps accepted");
+          }
+
+'''
+          text = replace_once(
+              text,
+              "    function _mustFailClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim, bytes memory signature)\n",
+              helper
+              + "    function _mustFailClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim, bytes memory signature)\n",
+          )
+          test.write_text(text)
+          PY
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit fixes and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/fix-a7-review-once .github/workflows/fix-a7-review-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: bound metering claims to active finite terms"
+          git push origin HEAD:gpt56/issue-9-capped-metered-services

@@ -9,8 +9,7 @@ interface VmCapacityAdapter {
 }
 
 contract PDPCapacityAdapterTest {
-    VmCapacityAdapter private constant vm =
-        VmCapacityAdapter(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmCapacityAdapter private constant vm = VmCapacityAdapter(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 private constant TIB = 1 << 40;
     uint256 private constant PRICE_PER_TIB = 1 ether;
@@ -66,9 +65,7 @@ contract PDPCapacityAdapterTest {
         _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(PRICE_PER_TIB, 0, QUOTE_TTL)));
         _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(PRICE_PER_TIB, EPOCHS_PER_30_DAYS, 0)));
 
-        (bool success,) = address(adapter).call(
-            abi.encodeCall(PDPCapacityAdapter.quoteUsage, (TIB, _pricingData()))
-        );
+        (bool success,) = address(adapter).call(abi.encodeCall(PDPCapacityAdapter.quoteUsage, (TIB, _pricingData())));
         require(!success, "usage pricing supported");
     }
 

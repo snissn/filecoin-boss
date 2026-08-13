@@ -123,8 +123,7 @@ contract PDPCapacityLifecycleTest {
         require(subscription.acceptedRatePerEpoch == ONE_TIB_RATE * 2, "accepted rate");
         require(subscription.quoteValidThroughEpoch == 115, "refreshed ttl");
 
-        (uint64 quoteEpoch, bytes32 resourceStateHash, bytes32 quoteHash) =
-            account.capacityQuoteState(subscriptionId);
+        (uint64 quoteEpoch, bytes32 resourceStateHash, bytes32 quoteHash) = account.capacityQuoteState(subscriptionId);
         require(quoteEpoch == 105, "quote epoch");
         require(resourceStateHash != bytes32(0), "resource state hash");
         require(quoteHash != bytes32(0), "quote hash");
@@ -209,10 +208,7 @@ contract PDPCapacityLifecycleTest {
         require(account.getSubscription(activeId).state == BossTypes.SubscriptionState.ACTIVE, "resume failed");
     }
 
-    function _input(uint256 nonce, uint256 maxRate)
-        private
-        returns (BossTypes.AcceptanceInput memory input)
-    {
+    function _input(uint256 nonce, uint256 maxRate) private returns (BossTypes.AcceptanceInput memory input) {
         bytes memory pricingData = abi.encode(
             PDPCapacityAdapter.CapacityTerms({
                 grossPricePerTiBPerPeriod: PRICE_PER_TIB,

@@ -9,9 +9,7 @@ contract CappedMeteredAdapterTest {
 
     function testQuotesZeroStreamingRateAndExactUsageFloor() public view {
         CappedMeteredAdapter adapter = new CappedMeteredAdapter();
-        bytes memory pricingData = abi.encode(
-            CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: 7 ether})
-        );
+        bytes memory pricingData = abi.encode(CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: 7 ether}));
         BossTypes.ResourceStatus memory resource;
 
         BossTypes.RateQuote memory quote = adapter.quoteRate(resource, pricingData);
@@ -40,14 +38,14 @@ contract CappedMeteredAdapterTest {
 
     function testFullPrecisionUsageDoesNotOverflowIntermediateProduct() public view {
         CappedMeteredAdapter adapter = new CappedMeteredAdapter();
-        bytes memory pricingData = abi.encode(
-            CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: type(uint128).max})
-        );
+        bytes memory pricingData = abi.encode(CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: type(uint128).max}));
 
         uint256 units = type(uint128).max;
         uint256 charged = adapter.quoteUsage(units, pricingData);
         require(charged != 0, "large quote");
-        require(charged == units * (type(uint128).max / TIB) + units * (type(uint128).max % TIB) / TIB, "full precision");
+        require(
+            charged == units * (type(uint128).max / TIB) + units * (type(uint128).max % TIB) / TIB, "full precision"
+        );
     }
 
     function _mustFailRate(

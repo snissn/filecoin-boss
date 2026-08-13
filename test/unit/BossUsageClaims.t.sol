@@ -207,10 +207,18 @@ contract BossUsageClaimsTest {
     function testClaimsAreBoundedBySingleWindowLifetimeAndBudgetCaps() public {
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(10 ether, 9 ether, 5 ether, 2 ether, 1));
 
-        uint256 charged1 = account.submitUsageClaim(subscriptionId, _claim(1, 100, 110, TIB), _signClaim(subscriptionId, _claim(1, 100, 110, TIB)));
-        uint256 charged2 = account.submitUsageClaim(subscriptionId, _claim(2, 110, 120, TIB), _signClaim(subscriptionId, _claim(2, 110, 120, TIB)));
-        uint256 charged3 = account.submitUsageClaim(subscriptionId, _claim(3, 120, 130, TIB), _signClaim(subscriptionId, _claim(3, 120, 130, TIB)));
-        uint256 charged4 = account.submitUsageClaim(subscriptionId, _claim(4, 130, 140, TIB), _signClaim(subscriptionId, _claim(4, 130, 140, TIB)));
+        uint256 charged1 = account.submitUsageClaim(
+            subscriptionId, _claim(1, 100, 110, TIB), _signClaim(subscriptionId, _claim(1, 100, 110, TIB))
+        );
+        uint256 charged2 = account.submitUsageClaim(
+            subscriptionId, _claim(2, 110, 120, TIB), _signClaim(subscriptionId, _claim(2, 110, 120, TIB))
+        );
+        uint256 charged3 = account.submitUsageClaim(
+            subscriptionId, _claim(3, 120, 130, TIB), _signClaim(subscriptionId, _claim(3, 120, 130, TIB))
+        );
+        uint256 charged4 = account.submitUsageClaim(
+            subscriptionId, _claim(4, 130, 140, TIB), _signClaim(subscriptionId, _claim(4, 130, 140, TIB))
+        );
 
         require(charged1 == 2 ether, "single cap first");
         require(charged2 == 2 ether, "single cap second");
@@ -220,9 +228,14 @@ contract BossUsageClaimsTest {
         require(pay.getRail(railId).lockupFixed == 5 ether, "budget after window");
 
         BossTypes.UsageClaim memory next = _claim(5, 200, 210, TIB);
-        require(account.submitUsageClaim(subscriptionId, next, _signClaim(subscriptionId, next)) == 2 ether, "next window");
+        require(
+            account.submitUsageClaim(subscriptionId, next, _signClaim(subscriptionId, next)) == 2 ether, "next window"
+        );
         next = _claim(6, 210, 220, TIB);
-        require(account.submitUsageClaim(subscriptionId, next, _signClaim(subscriptionId, next)) == 2 ether, "lifetime remainder");
+        require(
+            account.submitUsageClaim(subscriptionId, next, _signClaim(subscriptionId, next)) == 2 ether,
+            "lifetime remainder"
+        );
 
         BossTypes.Subscription memory subscription = account.getSubscription(subscriptionId);
         require(subscription.oneTimeChargedGross == 9 ether, "lifetime charged");
@@ -273,25 +286,26 @@ contract BossUsageClaimsTest {
         require(account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.EXHAUSTED, "exhausted");
 
         vm.prank(reporter);
-        (bool unauthorized,) = address(account).call(abi.encodeCall(BossAccount.topUpFixedBudget, (subscriptionId, 5 ether)));
+        (bool unauthorized,) =
+            address(account).call(abi.encodeCall(BossAccount.topUpFixedBudget, (subscriptionId, 5 ether)));
         require(!unauthorized, "reporter top-up accepted");
 
         account.topUpFixedBudget(subscriptionId, 5 ether);
         require(pay.getRail(railId).lockupFixed == 5 ether, "Pay budget topped up");
         require(account.getSubscription(subscriptionId).currentFixedBudget == 5 ether, "local budget topped up");
-        require(account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.ACTIVE, "service reactivated");
+        require(
+            account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.ACTIVE, "service reactivated"
+        );
 
-        (bool aboveCap,) = address(account).call(abi.encodeCall(BossAccount.topUpFixedBudget, (subscriptionId, 11 ether)));
+        (bool aboveCap,) =
+            address(account).call(abi.encodeCall(BossAccount.topUpFixedBudget, (subscriptionId, 11 ether)));
         require(!aboveCap, "above-cap top-up accepted");
     }
 
-    function _input(
-        uint256 initialBudget,
-        uint256 lifetimeCap,
-        uint256 windowCap,
-        uint256 singleCap,
-        uint256 nonce
-    ) private returns (BossTypes.AcceptanceInput memory input) {
+    function _input(uint256 initialBudget, uint256 lifetimeCap, uint256 windowCap, uint256 singleCap, uint256 nonce)
+        private
+        returns (BossTypes.AcceptanceInput memory input)
+    {
         bytes memory pricingData = abi.encode(CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: 7 ether}));
         BossTypes.ServiceOffer memory offer;
         offer.serviceId = SERVICE_ID;
@@ -369,10 +383,7 @@ contract BossUsageClaimsTest {
         return _sign(PROVIDER_KEY, digest);
     }
 
-    function _signClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim)
-        private
-        returns (bytes memory)
-    {
+    function _signClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim) private returns (bytes memory) {
         return _signWith(REPORTER_KEY, subscriptionId, claim);
     }
 
@@ -381,7 +392,8 @@ contract BossUsageClaimsTest {
         returns (bytes memory)
     {
         bytes32 digest = BossHashes.hashTypedData(
-            BossHashes.domainSeparator(block.chainid, address(account)), BossHashes.hashUsageClaim(subscriptionId, claim)
+            BossHashes.domainSeparator(block.chainid, address(account)),
+            BossHashes.hashUsageClaim(subscriptionId, claim)
         );
         return _sign(key, digest);
     }
@@ -394,9 +406,8 @@ contract BossUsageClaimsTest {
     function _mustFailClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim, bytes memory signature)
         private
     {
-        (bool success,) = address(account).call(
-            abi.encodeCall(BossAccount.submitUsageClaim, (subscriptionId, claim, signature))
-        );
+        (bool success,) =
+            address(account).call(abi.encodeCall(BossAccount.submitUsageClaim, (subscriptionId, claim, signature)));
         require(!success, "invalid claim accepted");
     }
 }

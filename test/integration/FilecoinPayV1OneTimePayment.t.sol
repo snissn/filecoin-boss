@@ -51,8 +51,7 @@ contract ExactMeteredResourceAdapter is IBossResourceAdapter {
 }
 
 contract FilecoinPayV1OneTimePaymentTest {
-    VmExactMeteredPay private constant vm =
-        VmExactMeteredPay(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmExactMeteredPay private constant vm = VmExactMeteredPay(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 private constant TIB = 1 << 40;
     uint256 private constant PROVIDER_KEY = 0xA11CE;
@@ -91,12 +90,8 @@ contract FilecoinPayV1OneTimePaymentTest {
         serviceRegistry.registerProvider("ipfs://provider", providerSigningKey);
         vm.prank(PROVIDER);
         serviceRegistry.publishService(SERVICE_ID, SERVICE_TYPE, "ipfs://service");
-        adapterRegistry.registerAdapter(
-            address(resourceAdapter), BossTypes.AdapterKind.RESOURCE, 1, "ipfs://resource"
-        );
-        adapterRegistry.registerAdapter(
-            address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://pricing"
-        );
+        adapterRegistry.registerAdapter(address(resourceAdapter), BossTypes.AdapterKind.RESOURCE, 1, "ipfs://resource");
+        adapterRegistry.registerAdapter(address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://pricing");
 
         account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
         pay.setOperatorApproval(IERC20(address(token)), address(account), true, 0, 10 ether, 0);
@@ -196,12 +191,10 @@ contract FilecoinPayV1OneTimePaymentTest {
         return _sign(PROVIDER_KEY, digest);
     }
 
-    function _signClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim)
-        private
-        returns (bytes memory)
-    {
+    function _signClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim) private returns (bytes memory) {
         bytes32 digest = BossHashes.hashTypedData(
-            BossHashes.domainSeparator(block.chainid, address(account)), BossHashes.hashUsageClaim(subscriptionId, claim)
+            BossHashes.domainSeparator(block.chainid, address(account)),
+            BossHashes.hashUsageClaim(subscriptionId, claim)
         );
         return _sign(REPORTER_KEY, digest);
     }

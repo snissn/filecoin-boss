@@ -1,0 +1,42 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contracts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Check formatting
+        run: forge fmt --check
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Test
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find test -type f -name '*.sol' -print -quit 2>/dev/null | grep -q .; then
+            forge test -vvv
+          else
+            echo 'No Solidity tests yet; issue #2 uses the documented bootstrap exception.'
+          fi

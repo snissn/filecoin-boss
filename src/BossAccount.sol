@@ -122,7 +122,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         if (
             input.resource.kind != BossTypes.ResourceKind.FWSS_PDP_DATASET || input.resource.chainId != block.chainid
-                || input.resource.anchor == address(0) || input.resource.context != bytes32(0)
+                || input.resource.anchor == address(0)
         ) revert InvalidResource();
         bytes32 canonicalResourceKey = BossHashes.hashResource(input.resource);
         BossTypes.ResourceStatus memory resource =

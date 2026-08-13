@@ -47,6 +47,13 @@ contract BossAccount is IFilecoinPayValidator {
     error ActivationAlreadyAcknowledged(bytes32 subscriptionId);
     error RailNotCurrent(uint256 railId, uint256 expectedEpoch, uint256 observedEpoch);
     error InvalidSettlementRange(uint256 fromEpoch, uint256 toEpoch);
+    error InvalidReporter();
+    error InvalidUsageClaim();
+    error UsageClaimAlreadyConsumed(bytes32 claimId);
+    error UsageNonceAlreadyConsumed(uint256 nonce);
+    error UsageWindowMismatch(uint256 startWindow, uint256 endWindow);
+    error FixedBudgetOutOfSync(uint256 expected, uint256 observed);
+    error InvalidTopUp(uint256 currentBudget, uint256 requestedBudget);
 
     event SubscriptionAccepted(
         bytes32 indexed subscriptionId,
@@ -68,6 +75,15 @@ contract BossAccount is IFilecoinPayValidator {
     event SubscriptionPayTerminationObserved(bytes32 indexed subscriptionId, uint256 indexed railId, uint256 endEpoch);
     event SubscriptionEnded(bytes32 indexed subscriptionId, uint64 endedEpoch);
     event AccessGrantCommitted(bytes32 indexed subscriptionId, bytes32 accessGrantHash);
+    event UsageClaimCharged(
+        bytes32 indexed subscriptionId,
+        bytes32 indexed claimId,
+        uint256 units,
+        uint256 rawGross,
+        uint256 chargedGross,
+        bytes32 evidenceHash
+    );
+    event FixedBudgetToppedUp(bytes32 indexed subscriptionId, uint256 oldBudget, uint256 newBudget);
 
     address public immutable owner;
     address public immutable payer;
@@ -81,6 +97,10 @@ contract BossAccount is IFilecoinPayValidator {
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionForRail;
     mapping(bytes32 subscriptionId => address signingKey) private _offerSigningKey;
     mapping(bytes32 subscriptionId => bool acknowledged) private _activationAcknowledged;
+    mapping(bytes32 subscriptionId => bytes pricingData) private _pricingDataBySubscription;
+    mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _consumedClaims;
+    mapping(bytes32 subscriptionId => mapping(uint256 nonce => bool consumed)) private _consumedUsageNonces;
+    mapping(bytes32 subscriptionId => mapping(uint256 window => uint256 gross)) private _usageGrossByWindow;
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized(msg.sender);
@@ -189,6 +209,9 @@ contract BossAccount is IFilecoinPayValidator {
         });
         _subscriptionForRail[railId] = subscriptionId;
         _offerSigningKey[subscriptionId] = offer.signingKey;
+        if (offer.billingKind == BossTypes.BillingKind.METERED_FIXED_LOCKUP) {
+            _pricingDataBySubscription[subscriptionId] = input.pricingData;
+        }
 
         emit SubscriptionAccepted(
             subscriptionId,
@@ -319,6 +342,101 @@ contract BossAccount is IFilecoinPayValidator {
         }
     }
 
+    function submitUsageClaim(
+        bytes32 subscriptionId,
+        BossTypes.UsageClaim calldata claim,
+        bytes calldata reporterSignature
+    ) external returns (uint256 chargedGross) {
+        BossTypes.Subscription storage subscription = _requireSubscription(subscriptionId);
+        if (
+            subscription.billingKind != BossTypes.BillingKind.METERED_FIXED_LOCKUP
+                || subscription.state != BossTypes.SubscriptionState.ACTIVE
+        ) revert InvalidState(subscriptionId, subscription.state);
+        _requireNotExpired(subscription);
+
+        if (
+            claim.claimId == bytes32(0) || claim.toEpoch <= claim.fromEpoch || claim.toEpoch > block.number
+                || claim.fromEpoch < subscription.activatedEpoch || claim.fromEpoch < subscription.lastUsageToEpoch
+        ) revert InvalidUsageClaim();
+        if (_consumedClaims[subscriptionId][claim.claimId]) {
+            revert UsageClaimAlreadyConsumed(claim.claimId);
+        }
+        if (_consumedUsageNonces[subscriptionId][claim.nonce]) {
+            revert UsageNonceAlreadyConsumed(claim.nonce);
+        }
+
+        uint256 windowSize = subscription.caps.chargeWindowEpochs;
+        uint256 startWindow = (uint256(claim.fromEpoch) - subscription.acceptedEpoch) / windowSize;
+        uint256 endWindow = (uint256(claim.toEpoch) - 1 - subscription.acceptedEpoch) / windowSize;
+        if (startWindow != endWindow) revert UsageWindowMismatch(startWindow, endWindow);
+
+        bytes32 claimHash = BossHashes.hashUsageClaim(subscriptionId, claim);
+        bytes32 digest = BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, address(this)), claimHash);
+        if (!_isValidSignature(subscription.reporter, digest, reporterSignature)) revert InvalidReporter();
+
+        _requirePinnedAdapterCode(subscription.pricingAdapter, BossTypes.AdapterKind.PRICING);
+        uint256 rawGross = IBossPricingAdapter(subscription.pricingAdapter).quoteUsage(
+            claim.units, _pricingDataBySubscription[subscriptionId]
+        );
+        IFilecoinPayV1.RailView memory rail = IFilecoinPayV1(filecoinPay).getRail(subscription.railId);
+        if (rail.lockupFixed != subscription.currentFixedBudget) {
+            revert FixedBudgetOutOfSync(subscription.currentFixedBudget, rail.lockupFixed);
+        }
+
+        chargedGross = _min(rawGross, subscription.caps.maxSingleCharge);
+        chargedGross = _min(
+            chargedGross,
+            BossTypes.remainingCap(
+                subscription.caps.maxChargePerWindow, _usageGrossByWindow[subscriptionId][startWindow]
+            )
+        );
+        chargedGross = _min(chargedGross, _remainingLifetime(subscription));
+        chargedGross = _min(chargedGross, rail.lockupFixed);
+
+        _consumedClaims[subscriptionId][claim.claimId] = true;
+        _consumedUsageNonces[subscriptionId][claim.nonce] = true;
+        _usageGrossByWindow[subscriptionId][startWindow] += chargedGross;
+        subscription.oneTimeChargedGross += chargedGross;
+        subscription.currentFixedBudget = rail.lockupFixed - chargedGross;
+        subscription.lastUsageToEpoch = claim.toEpoch;
+
+        if (subscription.currentFixedBudget == 0 || _remainingLifetime(subscription) == 0) {
+            subscription.state = BossTypes.SubscriptionState.EXHAUSTED;
+        }
+
+        if (chargedGross != 0) {
+            IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, 0, chargedGross);
+        }
+        emit UsageClaimCharged(subscriptionId, claim.claimId, claim.units, rawGross, chargedGross, claim.evidenceHash);
+    }
+
+    function topUpFixedBudget(bytes32 subscriptionId, uint256 newFixedBudget) external onlyOwner {
+        BossTypes.Subscription storage subscription = _requireSubscription(subscriptionId);
+        if (
+            subscription.billingKind != BossTypes.BillingKind.METERED_FIXED_LOCKUP
+                || subscription.state == BossTypes.SubscriptionState.TERMINATING
+                || subscription.state == BossTypes.SubscriptionState.ENDED
+        ) revert InvalidState(subscriptionId, subscription.state);
+        _requireNotExpired(subscription);
+
+        uint256 oldBudget = subscription.currentFixedBudget;
+        if (
+            newFixedBudget <= oldBudget || newFixedBudget > subscription.caps.maxFixedLockup
+                || _remainingLifetime(subscription) == 0
+        ) revert InvalidTopUp(oldBudget, newFixedBudget);
+
+        IFilecoinPayV1 pay = IFilecoinPayV1(filecoinPay);
+        IFilecoinPayV1.RailView memory rail = pay.getRail(subscription.railId);
+        if (rail.lockupFixed != oldBudget) revert FixedBudgetOutOfSync(oldBudget, rail.lockupFixed);
+
+        pay.modifyRailLockup(subscription.railId, rail.lockupPeriod, newFixedBudget);
+        subscription.currentFixedBudget = newFixedBudget;
+        if (subscription.state == BossTypes.SubscriptionState.EXHAUSTED) {
+            subscription.state = BossTypes.SubscriptionState.ACTIVE;
+        }
+        emit FixedBudgetToppedUp(subscriptionId, oldBudget, newFixedBudget);
+    }
+
     function getSubscription(bytes32 subscriptionId)
         external
         view
@@ -356,13 +474,12 @@ contract BossAccount is IFilecoinPayValidator {
             modifiedAmount = (billableEnd - billableStart) * acceptedRate;
             if (modifiedAmount > proposedAmount) modifiedAmount = proposedAmount;
 
-            uint256 remaining = BossTypes.remainingCap(subscription.caps.lifetimeCapGross, subscription.settledGross);
+            uint256 remaining = _remainingLifetime(subscription);
             if (modifiedAmount > remaining) modifiedAmount = remaining;
             subscription.settledGross += modifiedAmount;
 
             if (
-                !BossTypes.isUnlimitedCap(subscription.caps.lifetimeCapGross)
-                    && subscription.settledGross >= subscription.caps.lifetimeCapGross
+                !BossTypes.isUnlimitedCap(subscription.caps.lifetimeCapGross) && _remainingLifetime(subscription) == 0
                     && subscription.state == BossTypes.SubscriptionState.ACTIVE
             ) subscription.state = BossTypes.SubscriptionState.EXHAUSTED;
         }
@@ -396,7 +513,14 @@ contract BossAccount is IFilecoinPayValidator {
                 || offer.resourceAdapter == address(0) || offer.pricingAdapter == address(0)
                 || offer.serviceId == bytes32(0) || offer.serviceType == bytes32(0)
         ) revert InvalidOffer();
-        if (offer.billingKind != BossTypes.BillingKind.STREAM_FLAT) revert UnsupportedBillingKind();
+        bool isMetered = offer.billingKind == BossTypes.BillingKind.METERED_FIXED_LOCKUP;
+        if (offer.billingKind != BossTypes.BillingKind.STREAM_FLAT && !isMetered) {
+            revert UnsupportedBillingKind();
+        }
+        if (
+            isMetered
+                && (offer.reporter == address(0) || offer.assuranceKind != BossTypes.AssuranceKind.TRUSTED_METERING)
+        ) revert InvalidOffer();
         if (offer.terminationBillingKind == BossTypes.TerminationBillingKind.ADAPTER_DECIDES) {
             revert UnsupportedTerminationBillingKind();
         }
@@ -432,6 +556,14 @@ contract BossAccount is IFilecoinPayValidator {
         if (!BossAdapterRegistry(adapterRegistry).isActive(adapter, kind, 1)) revert InvalidAdapter(adapter, kind);
     }
 
+    function _requirePinnedAdapterCode(address adapter, BossTypes.AdapterKind kind) private view {
+        BossTypes.AdapterRecord memory record = BossAdapterRegistry(adapterRegistry).getAdapter(adapter);
+        if (
+            record.kind != kind || record.interfaceVersion != 1 || record.codeHash == bytes32(0)
+                || adapter.code.length == 0 || adapter.codehash != record.codeHash
+        ) revert InvalidAdapter(adapter, kind);
+    }
+
     function _validateCaps(
         BossTypes.ServiceOffer calldata offer,
         BossTypes.CapPolicy calldata caps,
@@ -442,9 +574,21 @@ contract BossAccount is IFilecoinPayValidator {
             caps.maxRatePerEpoch > offer.providerMaxRatePerEpoch || ratePerEpoch > caps.maxRatePerEpoch
                 || ratePerEpoch > offer.providerMaxRatePerEpoch || caps.maxFixedLockup > offer.providerMaxFixedLockup
                 || initialFixedBudget > caps.maxFixedLockup || initialFixedBudget > offer.providerMaxFixedLockup
-                || offer.requiredLockupPeriod > caps.maxLockupPeriod || caps.chargeWindowEpochs != 0
+                || offer.requiredLockupPeriod > caps.maxLockupPeriod
         ) revert InvalidCaps();
         if (caps.notAfterEpoch != 0 && block.number >= caps.notAfterEpoch) revert InvalidCaps();
+
+        if (offer.billingKind == BossTypes.BillingKind.STREAM_FLAT) {
+            if (caps.chargeWindowEpochs != 0) revert InvalidCaps();
+            return;
+        }
+        if (
+            ratePerEpoch != 0 || caps.maxRatePerEpoch != 0 || offer.providerMaxRatePerEpoch != 0
+                || initialFixedBudget == 0 || caps.maxSingleCharge == 0 || caps.maxChargePerWindow == 0
+                || caps.lifetimeCapGross == 0 || caps.chargeWindowEpochs == 0
+                || BossTypes.isUnlimitedCap(caps.maxFixedLockup) || BossTypes.isUnlimitedCap(caps.maxSingleCharge)
+                || BossTypes.isUnlimitedCap(caps.maxChargePerWindow) || BossTypes.isUnlimitedCap(caps.lifetimeCapGross)
+        ) revert InvalidCaps();
     }
 
     function _requireSubscription(bytes32 subscriptionId)
@@ -495,6 +639,16 @@ contract BossAccount is IFilecoinPayValidator {
                     && subscription.payEndEpoch != 0 && end > subscription.payEndEpoch
             ) end = subscription.payEndEpoch;
         }
+    }
+
+    function _remainingLifetime(BossTypes.Subscription storage subscription) private view returns (uint256) {
+        return BossTypes.remainingCap(
+            subscription.caps.lifetimeCapGross, subscription.settledGross + subscription.oneTimeChargedGross
+        );
+    }
+
+    function _min(uint256 left, uint256 right) private pure returns (uint256) {
+        return left < right ? left : right;
     }
 
     function _quoteValidThrough(uint64 quoteValidThroughEpoch, uint64 notAfterEpoch) private pure returns (uint64) {

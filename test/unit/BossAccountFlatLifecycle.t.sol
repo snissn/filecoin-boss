@@ -396,7 +396,7 @@ contract BossAccountFlatLifecycleTest {
         );
     }
 
-    function testCanonicalFwssBindingAndFlatCapShapeFailClosed() public {
+    function testCanonicalResourceAndFlatCapShapeFailClosed() public {
         BossTypes.AcceptanceInput memory input =
             _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 10);
 
@@ -410,10 +410,6 @@ contract BossAccountFlatLifecycleTest {
         _mustFailAccept(input);
 
         input.resource.kind = BossTypes.ResourceKind.FWSS_PDP_DATASET;
-        input.resource.context = keccak256("nonzero-context");
-        _mustFailAccept(input);
-
-        input.resource.context = bytes32(0);
         input.caps.chargeWindowEpochs = 1;
         _mustFailAccept(input);
     }

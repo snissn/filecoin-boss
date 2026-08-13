@@ -40,8 +40,7 @@ contract EventBundleAccount {
 }
 
 contract EventReconstructionTest {
-    VmEventLogs private constant VM =
-        VmEventLogs(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmEventLogs private constant VM = VmEventLogs(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     bytes32 private constant RESOURCE = keccak256("event-resource");
     bytes32 private constant MANIFEST = keccak256("event-manifest");
@@ -63,8 +62,7 @@ contract EventReconstructionTest {
         VmEventLogs.Log[] memory logs = VM.getRecordedLogs();
 
         bytes32 componentSignature = keccak256("BundleComponentAdded(bytes32,bytes32,uint256)");
-        bytes32 createdSignature =
-            keccak256("BundleCreated(bytes32,address,address,bytes32,bytes32,uint64,uint256)");
+        bytes32 createdSignature = keccak256("BundleCreated(bytes32,address,address,bytes32,bytes32,uint64,uint256)");
         bytes32[] memory reconstructed = new bytes32[](2);
         uint256 componentsSeen;
         bool createdSeen;

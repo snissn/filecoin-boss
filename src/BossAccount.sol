@@ -209,7 +209,9 @@ contract BossAccount is IFilecoinPayValidator {
         });
         _subscriptionForRail[railId] = subscriptionId;
         _offerSigningKey[subscriptionId] = offer.signingKey;
-        _pricingDataBySubscription[subscriptionId] = input.pricingData;
+        if (offer.billingKind == BossTypes.BillingKind.METERED_FIXED_LOCKUP) {
+            _pricingDataBySubscription[subscriptionId] = input.pricingData;
+        }
 
         emit SubscriptionAccepted(
             subscriptionId,
@@ -372,6 +374,7 @@ contract BossAccount is IFilecoinPayValidator {
         bytes32 digest = BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, address(this)), claimHash);
         if (!_isValidSignature(subscription.reporter, digest, reporterSignature)) revert InvalidReporter();
 
+        _requirePinnedAdapterCode(subscription.pricingAdapter, BossTypes.AdapterKind.PRICING);
         uint256 rawGross = IBossPricingAdapter(subscription.pricingAdapter).quoteUsage(
             claim.units, _pricingDataBySubscription[subscriptionId]
         );
@@ -551,6 +554,14 @@ contract BossAccount is IFilecoinPayValidator {
 
     function _requireAdapter(address adapter, BossTypes.AdapterKind kind) private view {
         if (!BossAdapterRegistry(adapterRegistry).isActive(adapter, kind, 1)) revert InvalidAdapter(adapter, kind);
+    }
+
+    function _requirePinnedAdapterCode(address adapter, BossTypes.AdapterKind kind) private view {
+        BossTypes.AdapterRecord memory record = BossAdapterRegistry(adapterRegistry).getAdapter(adapter);
+        if (
+            record.kind != kind || record.interfaceVersion != 1 || record.codeHash == bytes32(0)
+                || adapter.code.length == 0 || adapter.codehash != record.codeHash
+        ) revert InvalidAdapter(adapter, kind);
     }
 
     function _validateCaps(

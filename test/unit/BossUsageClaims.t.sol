@@ -15,6 +15,7 @@ interface VmUsageClaims {
     function prank(address sender) external;
     function roll(uint256 newHeight) external;
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
+    function etch(address target, bytes calldata newRuntimeBytecode) external;
 }
 
 contract MeteredResourceAdapter is IBossResourceAdapter {
@@ -279,6 +280,26 @@ contract BossUsageClaimsTest {
         require(account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim)) == 0, "zero charge");
         require(pay.oneTimeGross(railId) == 0, "no Pay payment");
         _mustFailClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
+    }
+
+    function testDisabledAcceptedPricingAdapterRemainsUsable() public {
+        (bytes32 subscriptionId,) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 40));
+        adapterRegistry.setAdapterActive(address(pricingAdapter), false);
+        vm.roll(120);
+        BossTypes.UsageClaim memory claim = _claim(40, 100, 110, TIB / 10);
+        require(
+            account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim)) != 0,
+            "accepted adapter disabled retroactively"
+        );
+    }
+
+    function testChangedPricingAdapterCodeFailsClosed() public {
+        (bytes32 subscriptionId,) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 41));
+        vm.roll(120);
+        BossTypes.UsageClaim memory claim = _claim(41, 100, 110, TIB / 10);
+        bytes memory signature = _signClaim(subscriptionId, claim);
+        vm.etch(address(pricingAdapter), hex"00");
+        _mustFailClaim(subscriptionId, claim, signature);
     }
 
     function testOnlyOwnerCanTopUpAndTopUpCannotExceedAcceptedCap() public {

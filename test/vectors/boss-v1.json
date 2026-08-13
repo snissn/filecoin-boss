@@ -1,10 +1,12 @@
 {
   "schema": "filecoin-boss-v1-vectors/1",
-  "eip712": {
+  "domain": {
     "name": "Filecoin Boss",
     "version": "1",
-    "domainType": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
-    "domainTypeHash": "0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f"
+    "chainId": "314159",
+    "verifyingContract": "0x7777777777777777777777777777777777777777",
+    "canonical": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+    "typeHash": "0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f"
   },
   "types": {
     "ServiceOffer": {
@@ -22,6 +24,79 @@
     "UsageClaim": {
       "canonical": "UsageClaim(bytes32 subscriptionId,bytes32 claimId,uint64 fromEpoch,uint64 toEpoch,uint256 units,bytes32 evidenceHash,bytes32 evidenceURIHash,uint256 nonce)",
       "typeHash": "0xa1faeb4ef291c53d9cea624928e618cd10021bab0b40f92a58689807bd1ccb82"
+    }
+  },
+  "inputs": {
+    "resource": {
+      "kind": "0",
+      "kindName": "FWSS_PDP_DATASET",
+      "chainId": "314159",
+      "anchor": "0x1111111111111111111111111111111111111111",
+      "resourceId": "42",
+      "context": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "offer": {
+      "serviceId": "0x658d14a92e6293d4f3f07ae2cd6eb0f83553bc332e408ceba8e226a77ada5cbd",
+      "offerVersion": "7",
+      "provider": "0x1111111111111111111111111111111111111111",
+      "signingKey": "0x2222222222222222222222222222222222222222",
+      "beneficiary": "0x3333333333333333333333333333333333333333",
+      "reporter": "0x0000000000000000000000000000000000000000",
+      "token": "0x4444444444444444444444444444444444444444",
+      "resourceAdapter": "0x5555555555555555555555555555555555555555",
+      "pricingAdapter": "0x6666666666666666666666666666666666666666",
+      "serviceType": "0x6ad4074b2bf322f30c9e731a0a75fdf837fd41c92bc15eab6b4ed5f486c63259",
+      "billingKind": "1",
+      "billingKindName": "STREAM_CAPACITY",
+      "assuranceKind": "0",
+      "assuranceKindName": "CANCELLABLE_ONLY",
+      "dependencyKind": "2",
+      "dependencyKindName": "HARD",
+      "activationKind": "0",
+      "activationKindName": "IMMEDIATE",
+      "terminationBillingKind": "1",
+      "terminationBillingKindName": "ZERO_AFTER_REQUEST",
+      "pricingDataHash": "0x2bab01bf7bf5ace39e6d17c93c5cc64dbd4bee54768b329988cd15f6621573d9",
+      "termsHash": "0x859eb08b835e7770b0e7ba9fa0896ac430b3a5dc1c8ef2d2d7d6b405a71aa552",
+      "accessScopeHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "validAfterEpoch": "100",
+      "validUntilEpoch": "200000",
+      "requiredLockupPeriod": "2880",
+      "quoteTtlEpochs": "2880",
+      "commissionBps": "0",
+      "commissionRecipient": "0x0000000000000000000000000000000000000000",
+      "pauseAllowed": true,
+      "providerMaxRatePerEpoch": "1000000000000000000",
+      "providerMaxFixedLockup": "2500000000000000000",
+      "nonce": "9"
+    },
+    "caps": {
+      "maxRatePerEpoch": "11574074074074",
+      "maxFixedLockup": "2000000000000000000",
+      "maxSingleCharge": "0",
+      "maxChargePerWindow": "0",
+      "lifetimeCapGross": "12000000000000000000",
+      "chargeWindowEpochs": "0",
+      "notAfterEpoch": "1234567",
+      "maxLockupPeriod": "2880"
+    },
+    "acceptance": {
+      "resourceDataHash": "0xf46c482831e58d08de9222eda752d1fdb1e01193fcd597d34e93d37a832eba40",
+      "pricingDataHash": "0x2bab01bf7bf5ace39e6d17c93c5cc64dbd4bee54768b329988cd15f6621573d9",
+      "initialFixedBudget": "0",
+      "accessGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "subscription": {
+      "account": "0x7777777777777777777777777777777777777777"
+    },
+    "usageClaim": {
+      "claimId": "0x32716d4060423b0169a8fcaec280e4cd71a68feb8e0d1bf1539fb1d254d33b5c",
+      "fromEpoch": "1000",
+      "toEpoch": "1100",
+      "units": "1099511627776",
+      "evidenceHash": "0x038702c9ab6a8a7dd47ee2cfe1088c97a003446c3965c4fbf1f85f9f9700f81a",
+      "evidenceURI": "ipfs://evidence/claim-1",
+      "nonce": "1"
     }
   },
   "vectors": {

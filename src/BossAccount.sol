@@ -703,17 +703,15 @@ contract BossAccount is IFilecoinPayValidator {
     function _capacityValidThrough(uint64 quoteEpoch, uint64 quoteTtlEpochs, uint64 notAfterEpoch, bool billable)
         private
         pure
-        returns (uint64 validThrough)
+        returns (uint64)
     {
-        if (!billable) return quoteEpoch;
-        validThrough = quoteEpoch + quoteTtlEpochs;
-        if (notAfterEpoch != 0 && notAfterEpoch < validThrough) validThrough = notAfterEpoch;
+        return billable ? _quoteValidThrough(quoteEpoch + quoteTtlEpochs, notAfterEpoch) : quoteEpoch;
     }
 
     function _requireCurrentCapacityQuote(BossTypes.Subscription storage subscription) private view {
         if (
             subscription.billingKind == BossTypes.BillingKind.STREAM_CAPACITY
-                && (subscription.quoteValidThroughEpoch == 0 || block.number >= subscription.quoteValidThroughEpoch)
+                && block.number >= subscription.quoteValidThroughEpoch
         ) revert InvalidCapacityQuote();
     }
 

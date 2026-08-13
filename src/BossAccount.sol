@@ -9,9 +9,14 @@ import {IFilecoinPayV1, IFilecoinPayValidator} from "./interfaces/IFilecoinPayV1
 import {BossHashes} from "./libraries/BossHashes.sol";
 import {BossTypes} from "./libraries/BossTypes.sol";
 
+interface IERC1271 {
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+}
+
 /// @notice Immutable user-owned account for independently bounded service rails.
 contract BossAccount is IFilecoinPayValidator {
     uint256 private constant SECP256K1N_HALF = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
+    bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
     bytes32 private constant ACTIVATION_ACK_TYPEHASH =
         keccak256("ActivationAcknowledgement(bytes32 subscriptionId,bytes32 provisioningHash)");
 
@@ -115,12 +120,16 @@ contract BossAccount is IFilecoinPayValidator {
         _requireAdapter(offer.resourceAdapter, BossTypes.AdapterKind.RESOURCE);
         _requireAdapter(offer.pricingAdapter, BossTypes.AdapterKind.PRICING);
 
-        if (input.resource.chainId != block.chainid) revert InvalidResource();
+        if (
+            input.resource.kind != BossTypes.ResourceKind.FWSS_PDP_DATASET || input.resource.chainId != block.chainid
+                || input.resource.anchor == address(0) || input.resource.context != bytes32(0)
+        ) revert InvalidResource();
+        bytes32 canonicalResourceKey = BossHashes.hashResource(input.resource);
         BossTypes.ResourceStatus memory resource =
             IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, payer, input.resourceData);
         if (
             !resource.exists || !resource.attachable || !resource.billable || resource.payer != payer
-                || resource.resourceKey == bytes32(0)
+                || resource.resourceKey != canonicalResourceKey
         ) revert InvalidResource();
 
         BossTypes.RateQuote memory quote =
@@ -212,11 +221,12 @@ contract BossAccount is IFilecoinPayValidator {
         }
         if (_activationAcknowledged[subscriptionId]) revert ActivationAlreadyAcknowledged(subscriptionId);
         if (
-            _recover(activationAckDigest(subscriptionId, provisioningHash), providerSignature)
-                != _offerSigningKey[subscriptionId]
-        ) {
-            revert InvalidProviderSignature();
-        }
+            !_isValidSignature(
+                _offerSigningKey[subscriptionId],
+                activationAckDigest(subscriptionId, provisioningHash),
+                providerSignature
+            )
+        ) revert InvalidProviderSignature();
 
         _activationAcknowledged[subscriptionId] = true;
         emit ProviderActivationAcknowledged(subscriptionId, provisioningHash);
@@ -230,6 +240,11 @@ contract BossAccount is IFilecoinPayValidator {
         if (!_activationAcknowledged[subscriptionId]) revert ActivationNotAcknowledged(subscriptionId);
         _requireNotExpired(subscription);
 
+        uint256 currentEpoch = block.number;
+        (,,,, uint256 finalSettledEpoch,) = IFilecoinPayV1(filecoinPay).settleRail(subscription.railId, currentEpoch);
+        if (finalSettledEpoch != currentEpoch) {
+            revert RailNotCurrent(subscription.railId, currentEpoch, finalSettledEpoch);
+        }
         IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, subscription.acceptedRatePerEpoch, 0);
         uint64 activatedEpoch = _epoch();
         subscription.activatedEpoch = activatedEpoch;
@@ -410,7 +425,7 @@ contract BossAccount is IFilecoinPayValidator {
     {
         bytes32 offerHash = BossHashes.hashServiceOffer(offer);
         bytes32 digest = BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, address(this)), offerHash);
-        if (_recover(digest, providerSignature) != offer.signingKey) revert InvalidProviderSignature();
+        if (!_isValidSignature(offer.signingKey, digest, providerSignature)) revert InvalidProviderSignature();
     }
 
     function _requireAdapter(address adapter, BossTypes.AdapterKind kind) private view {
@@ -427,7 +442,7 @@ contract BossAccount is IFilecoinPayValidator {
             caps.maxRatePerEpoch > offer.providerMaxRatePerEpoch || ratePerEpoch > caps.maxRatePerEpoch
                 || ratePerEpoch > offer.providerMaxRatePerEpoch || caps.maxFixedLockup > offer.providerMaxFixedLockup
                 || initialFixedBudget > caps.maxFixedLockup || initialFixedBudget > offer.providerMaxFixedLockup
-                || offer.requiredLockupPeriod > caps.maxLockupPeriod
+                || offer.requiredLockupPeriod > caps.maxLockupPeriod || caps.chargeWindowEpochs != 0
         ) revert InvalidCaps();
         if (caps.notAfterEpoch != 0 && block.number >= caps.notAfterEpoch) revert InvalidCaps();
     }
@@ -486,6 +501,15 @@ contract BossAccount is IFilecoinPayValidator {
         if (notAfterEpoch == 0) return quoteValidThroughEpoch;
         if (quoteValidThroughEpoch == 0 || notAfterEpoch < quoteValidThroughEpoch) return notAfterEpoch;
         return quoteValidThroughEpoch;
+    }
+
+    function _isValidSignature(address signer, bytes32 digest, bytes calldata signature) private view returns (bool) {
+        if (signer.code.length == 0) return _recover(digest, signature) == signer;
+
+        (bool success, bytes memory result) = signer.staticcall{gas: 50_000}(
+            abi.encodeWithSelector(IERC1271.isValidSignature.selector, digest, signature)
+        );
+        return success && result.length >= 32 && abi.decode(result, (bytes4)) == ERC1271_MAGIC_VALUE;
     }
 
     function _recover(bytes32 digest, bytes calldata signature) private pure returns (address signer) {

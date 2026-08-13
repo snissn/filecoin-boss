@@ -19,9 +19,14 @@ interface VmFlatLifecycle {
 
 contract MockFlatResourceAdapter is IBossResourceAdapter {
     bool public valid = true;
+    bytes32 public resourceKeyOverride;
 
     function setValid(bool valid_) external {
         valid = valid_;
+    }
+
+    function setResourceKeyOverride(bytes32 resourceKeyOverride_) external {
+        resourceKeyOverride = resourceKeyOverride_;
     }
 
     function interfaceVersion() external pure returns (uint64) {
@@ -34,7 +39,7 @@ contract MockFlatResourceAdapter is IBossResourceAdapter {
         returns (BossTypes.ResourceStatus memory status)
     {
         status = BossTypes.ResourceStatus({
-            resourceKey: BossHashes.hashResource(resource),
+            resourceKey: resourceKeyOverride == bytes32(0) ? BossHashes.hashResource(resource) : resourceKeyOverride,
             exists: valid,
             attachable: valid,
             billable: valid,
@@ -46,6 +51,21 @@ contract MockFlatResourceAdapter is IBossResourceAdapter {
     }
 }
 
+contract MockERC1271Signer {
+    bytes4 private constant MAGIC_VALUE = 0x1626ba7e;
+    bytes32 public validDigest;
+
+    function setValidDigest(bytes32 digest) external {
+        validDigest = digest;
+    }
+
+    function isValidSignature(bytes32 digest, bytes calldata) external view returns (bytes4) {
+        return digest == validDigest ? MAGIC_VALUE : bytes4(0xffffffff);
+    }
+}
+
+/// @dev Minimal semantic harness, locked to Filecoin Pay V1 commit
+/// 04ded6af6c15c4b5d98545f393dc656004d4aede; it is not production Pay code.
 contract MockFilecoinPayV1 is IFilecoinPayV1 {
     mapping(uint256 railId => RailView rail) private _rails;
     mapping(address token => mapping(address client => mapping(address operator => bool approved))) private _approved;
@@ -306,6 +326,7 @@ contract BossAccountFlatLifecycleTest {
         require(pay.getRail(railId).paymentRate == 0, "pending rate zero");
         _mustFail(address(account), abi.encodeCall(BossAccount.activate, (subscriptionId)));
 
+        vm.roll(105);
         bytes32 provisioningHash = keccak256("provisioned");
         bytes memory acknowledgement = _signDigest(account.activationAckDigest(subscriptionId, provisioningHash));
         account.acknowledgeActivation(subscriptionId, provisioningHash, acknowledgement);
@@ -314,6 +335,7 @@ contract BossAccountFlatLifecycleTest {
         require(account.activationAcknowledged(subscriptionId), "acknowledged");
         require(account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.ACTIVE, "active");
         require(pay.getRail(railId).paymentRate == 10, "activated rate");
+        require(pay.getRail(railId).settledUpTo == 105, "activation settles prospectively");
     }
 
     function testReplayExpiredRevokedAndOverRateAcceptancesFailClosed() public {
@@ -374,6 +396,59 @@ contract BossAccountFlatLifecycleTest {
         );
     }
 
+    function testCanonicalFwssBindingAndFlatCapShapeFailClosed() public {
+        BossTypes.AcceptanceInput memory input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 10);
+
+        resourceAdapter.setResourceKeyOverride(bytes32(uint256(1)));
+        _mustFailAccept(input);
+
+        resourceAdapter.setResourceKeyOverride(bytes32(0));
+        input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 11);
+        input.resource.kind = BossTypes.ResourceKind.GENERIC_CONTENT_ROOT;
+        _mustFailAccept(input);
+
+        input.resource.kind = BossTypes.ResourceKind.FWSS_PDP_DATASET;
+        input.resource.context = keccak256("nonzero-context");
+        _mustFailAccept(input);
+
+        input.resource.context = bytes32(0);
+        input.caps.chargeWindowEpochs = 1;
+        _mustFailAccept(input);
+    }
+
+    function testERC1271ProviderOfferAndActivationSignatures() public {
+        MockERC1271Signer contractSigner = new MockERC1271Signer();
+        vm.prank(PROVIDER);
+        serviceRegistry.setSigningKey(address(contractSigner), true);
+
+        BossTypes.AcceptanceInput memory input = _input(
+            BossTypes.ActivationKind.PROVIDER_ACK,
+            BossTypes.TerminationBillingKind.PAY_THROUGH_FILECOIN_PAY_END,
+            1_000,
+            12
+        );
+        input.offer.signingKey = address(contractSigner);
+        bytes32 offerDigest = BossHashes.hashTypedData(
+            BossHashes.domainSeparator(block.chainid, address(account)), BossHashes.hashServiceOffer(input.offer)
+        );
+        contractSigner.setValidDigest(offerDigest);
+        input.providerSignature = hex"01";
+        (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);
+
+        bytes32 provisioningHash = keccak256("contract-provisioned");
+        contractSigner.setValidDigest(account.activationAckDigest(subscriptionId, provisioningHash));
+        account.acknowledgeActivation(subscriptionId, provisioningHash, hex"02");
+        account.activate(subscriptionId);
+
+        require(
+            account.getSubscription(subscriptionId).state == BossTypes.SubscriptionState.ACTIVE,
+            "contract signer active"
+        );
+        require(pay.getRail(railId).paymentRate == 10, "contract signer rate");
+    }
+
     function testInvalidResourceAndFlatPricingFailuresAreClosed() public {
         BossTypes.AcceptanceInput memory input =
             _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 9);
@@ -426,11 +501,11 @@ contract BossAccountFlatLifecycleTest {
         offer.nonce = nonce;
 
         BossTypes.ResourceRef memory resource = BossTypes.ResourceRef({
-            kind: BossTypes.ResourceKind.GENERIC_CONTENT_ROOT,
+            kind: BossTypes.ResourceKind.FWSS_PDP_DATASET,
             chainId: uint64(block.chainid),
             anchor: address(0xA11CE),
             resourceId: 1,
-            context: keccak256("resource-context")
+            context: bytes32(0)
         });
         BossTypes.CapPolicy memory caps = BossTypes.CapPolicy({
             maxRatePerEpoch: 10,

@@ -12,8 +12,7 @@ contract CapSemanticsTest {
     function testMaximumCapIsUnlimitedSentinel() public pure {
         require(BossTypes.isUnlimitedCap(type(uint256).max), "unlimited sentinel");
         require(
-            BossTypes.remainingCap(type(uint256).max, type(uint256).max - 1) == type(uint256).max,
-            "unlimited remaining"
+            BossTypes.remainingCap(type(uint256).max, type(uint256).max - 1) == type(uint256).max, "unlimited remaining"
         );
     }
 

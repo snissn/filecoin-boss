@@ -10,3 +10,10 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 fs_permissions = [{ access = "read", path = "./test/vectors" }]
+remappings = [
+    "filecoin-pay/=lib/filecoin-pay/src/",
+    "@openzeppelin/contracts/=lib/filecoin-pay/lib/openzeppelin-contracts/contracts/",
+    "fvm-solidity/=lib/filecoin-pay/lib/fvm-solidity/src/",
+    "forge-std/=lib/filecoin-pay/lib/forge-std/src/",
+    "@prb-math/=lib/filecoin-pay/lib/prb-math/src/",
+]

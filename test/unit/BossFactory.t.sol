@@ -143,21 +143,41 @@ contract BossFactoryTest {
         );
     }
 
-    function testNonzeroAccountVersionChangesAddressAndIsPreserved() public {
+    function testUnsupportedAccountVersionsFailClosed() public {
         BossFactory factory = new BossFactory();
+        FactoryActor caller = new FactoryActor();
         bytes memory creationCode = _creationCode();
-        uint64 nextVersion = VERSION + 1;
+        uint64 unsupportedVersion = VERSION + 1;
 
-        address versionOne =
-            factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
-        address versionTwo =
-            factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, nextVersion, creationCode);
-        require(versionOne != versionTwo, "version affects address");
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(
+                BossFactory.accountKey, (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion)
+            )
+        );
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(
+                BossFactory.predictAccount,
+                (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion, creationCode)
+            )
+        );
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(
+                BossFactory.createAccount,
+                (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion, creationCode)
+            )
+        );
 
-        address account =
-            factory.createAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, nextVersion, creationCode);
-        require(account == versionTwo, "version-two prediction parity");
-        require(BossAccount(account).accountVersion() == nextVersion, "version preserved");
+        try new BossAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion) returns (
+            BossAccount
+        ) {
+            revert("unsupported account version deployed");
+        } catch {}
     }
 
     function testAnyoneMayDeployButCannotAcquireOwnerAuthority() public {

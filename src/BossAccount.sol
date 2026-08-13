@@ -118,7 +118,7 @@ contract BossAccount is IFilecoinPayValidator {
         if (filecoinPay_ == address(0)) revert InvalidFilecoinPay();
         if (serviceRegistry_ == address(0)) revert InvalidServiceRegistry();
         if (adapterRegistry_ == address(0)) revert InvalidAdapterRegistry();
-        if (accountVersion_ == 0) revert InvalidAccountVersion();
+        if (accountVersion_ != 1) revert InvalidAccountVersion();
 
         owner = owner_;
         payer = owner_;

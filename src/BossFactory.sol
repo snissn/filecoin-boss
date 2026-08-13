@@ -121,6 +121,6 @@ contract BossFactory {
         if (filecoinPay == address(0)) revert InvalidFilecoinPay();
         if (serviceRegistry == address(0)) revert InvalidServiceRegistry();
         if (adapterRegistry == address(0)) revert InvalidAdapterRegistry();
-        if (accountVersion == 0) revert InvalidAccountVersion();
+        if (accountVersion != 1) revert InvalidAccountVersion();
     }
 }

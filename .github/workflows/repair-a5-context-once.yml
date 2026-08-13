@@ -1,0 +1,110 @@
+name: Repair A5 zero-context finding once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-7-fwss-pdp-resource-binding
+    paths:
+      - .github/repair-a5-context-once
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-7-fwss-pdp-resource-binding
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Keep public resource context zero
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"anchor mismatch ({count}): {old[:120]!r}")
+              return text.replace(old, new)
+
+          adapter = Path("src/adapters/resources/FWSSPDPResourceAdapter.sol")
+          text = adapter.read_text()
+          text = replace_once(
+              text,
+              "    bytes32 public immutable resourceContext;\n",
+              "    bytes32 public constant resourceContext = bytes32(0);\n",
+          )
+          text = replace_once(
+              text,
+              "        resourceContext = keccak256(abi.encode(\"FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1\", fwssService_, fwssStateView_));\n",
+              "",
+          )
+          text = replace_once(
+              text,
+              "                || resource.anchor != pdpVerifier || resource.context != resourceContext\n",
+              "                || resource.anchor != pdpVerifier || resource.context != bytes32(0)\n",
+          )
+          text = replace_once(
+              text,
+              "                resourceKey,\n                info.payer,\n",
+              "                resourceKey,\n                pdpVerifier,\n                fwssService,\n                fwssStateView,\n                info.payer,\n",
+          )
+          adapter.write_text(text)
+
+          unit = Path("test/unit/FWSSPDPResourceAdapter.t.sol")
+          text = unit.read_text()
+          start = text.index("    function testContextCommitsExactDeploymentTuple() public view {")
+          end = text.index("\n    function testWrongStructuralIdentityFailsClosed()", start)
+          replacement = '''    function testAdapterPinsExactDeploymentTupleAndUsesZeroContext() public view {
+                  require(adapter.pdpVerifier() == address(pdp), "PDP verifier");
+                  require(adapter.fwssService() == FWSS_SERVICE, "FWSS service");
+                  require(adapter.fwssStateView() == address(stateView), "FWSS state view");
+                  require(adapter.resourceContext() == bytes32(0), "public MVP context");
+                  require(_resource().context == bytes32(0), "resource context");
+              }
+          '''
+          text = text[:start] + replacement + text[end:]
+          text = replace_once(
+              text,
+              "            context: adapter.resourceContext()\n",
+              "            context: bytes32(0)\n",
+          )
+          unit.write_text(text)
+
+          integration = Path("test/integration/FWSSResourceBinding.t.sol")
+          text = integration.read_text()
+          text = replace_once(
+              text,
+              "                context: resourceAdapter.resourceContext()\n",
+              "                context: bytes32(0)\n",
+          )
+          integration.write_text(text)
+          PY
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit repair and remove failed workflow artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/a5-zero-context-test-once \
+            .github/workflows/a5-zero-context-test-once.yml \
+            .github/repair-a5-context-once \
+            .github/workflows/repair-a5-context-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: keep public FWSS resource context zero"
+          git push origin HEAD:gpt56/issue-7-fwss-pdp-resource-binding

@@ -205,6 +205,7 @@ contract BossUsageClaimsTest {
     }
 
     function testClaimsAreBoundedBySingleWindowLifetimeAndBudgetCaps() public {
+        vm.roll(250);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(10 ether, 9 ether, 5 ether, 2 ether, 1));
 
         uint256 charged1 = account.submitUsageClaim(
@@ -245,6 +246,7 @@ contract BossUsageClaimsTest {
     }
 
     function testReplayOverlapWrongReporterFutureAndCrossWindowClaimsFailClosed() public {
+        vm.roll(250);
         (bytes32 subscriptionId,) = account.acceptOffer(_input(10 ether, 20 ether, 10 ether, 5 ether, 2));
         BossTypes.UsageClaim memory claim = _claim(10, 100, 110, TIB / 10);
         bytes memory signature = _signClaim(subscriptionId, claim);
@@ -270,6 +272,7 @@ contract BossUsageClaimsTest {
     }
 
     function testZeroByteClaimIsConsumedWithoutPayment() public {
+        vm.roll(120);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 3));
         BossTypes.UsageClaim memory claim = _claim(20, 100, 110, 0);
 
@@ -279,6 +282,7 @@ contract BossUsageClaimsTest {
     }
 
     function testOnlyOwnerCanTopUpAndTopUpCannotExceedAcceptedCap() public {
+        vm.roll(120);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 4));
         BossTypes.UsageClaim memory claim = _claim(30, 100, 110, TIB);
         account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));

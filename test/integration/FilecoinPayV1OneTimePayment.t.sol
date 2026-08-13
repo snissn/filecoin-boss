@@ -103,6 +103,7 @@ contract FilecoinPayV1OneTimePaymentTest {
         require(rail.paymentRate == 0, "zero streaming rate");
         require(rail.lockupFixed == 10 ether, "initial fixed budget");
 
+        vm.roll(110);
         BossTypes.UsageClaim memory claim = BossTypes.UsageClaim({
             claimId: keccak256("exact-claim"),
             fromEpoch: 100,

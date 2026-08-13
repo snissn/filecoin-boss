@@ -7,7 +7,7 @@ import {BossTypes} from "../../src/libraries/BossTypes.sol";
 contract CappedMeteredAdapterTest {
     uint256 private constant TIB = 1 << 40;
 
-    function testQuotesZeroStreamingRateAndExactUsageFloor() public view {
+    function testQuotesZeroStreamingRateAndExactUsageFloor() public {
         CappedMeteredAdapter adapter = new CappedMeteredAdapter();
         bytes memory pricingData = abi.encode(CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: 7 ether}));
         BossTypes.ResourceStatus memory resource;
@@ -36,7 +36,7 @@ contract CappedMeteredAdapterTest {
         _mustFailUsage(adapter, 1, zeroPrice);
     }
 
-    function testFullPrecisionUsageDoesNotOverflowIntermediateProduct() public view {
+    function testFullPrecisionUsageDoesNotOverflowIntermediateProduct() public {
         CappedMeteredAdapter adapter = new CappedMeteredAdapter();
         bytes memory pricingData = abi.encode(CappedMeteredAdapter.MeteredTerms({grossPricePerTiB: type(uint128).max}));
 

@@ -1,0 +1,63 @@
+{
+  "schema": "filecoin-boss-v1-vectors/1",
+  "eip712": {
+    "name": "Filecoin Boss",
+    "version": "1",
+    "domainType": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+    "domainTypeHash": "0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f"
+  },
+  "types": {
+    "ServiceOffer": {
+      "canonical": "ServiceOffer(bytes32 serviceId,uint64 offerVersion,address provider,address signingKey,address beneficiary,address reporter,address token,address resourceAdapter,address pricingAdapter,bytes32 serviceType,uint8 billingKind,uint8 assuranceKind,uint8 dependencyKind,uint8 activationKind,uint8 terminationBillingKind,bytes32 pricingDataHash,bytes32 termsHash,bytes32 accessScopeHash,uint64 validAfterEpoch,uint64 validUntilEpoch,uint64 requiredLockupPeriod,uint64 quoteTtlEpochs,uint16 commissionBps,address commissionRecipient,bool pauseAllowed,uint256 providerMaxRatePerEpoch,uint256 providerMaxFixedLockup,uint256 nonce)",
+      "typeHash": "0x61bf5420969c320cfb7ce504f65256abc945d0989a42c04d94c792b9ba45f830"
+    },
+    "CapPolicy": {
+      "canonical": "CapPolicy(uint256 maxRatePerEpoch,uint256 maxFixedLockup,uint256 maxSingleCharge,uint256 maxChargePerWindow,uint256 lifetimeCapGross,uint64 chargeWindowEpochs,uint64 notAfterEpoch,uint64 maxLockupPeriod)",
+      "typeHash": "0x756a867c1261ed3605a2b661112ea5f8ee157e9c9184a885859941ac56d8cecc"
+    },
+    "Acceptance": {
+      "canonical": "Acceptance(bytes32 offerHash,bytes32 resourceKey,bytes32 resourceDataHash,bytes32 pricingDataHash,bytes32 capsHash,uint256 initialFixedBudget,bytes32 accessGrantHash)",
+      "typeHash": "0x01e76c6906b086d16efe05dc46ce20e34c39782c966c7ad641986328bb75d7de"
+    },
+    "UsageClaim": {
+      "canonical": "UsageClaim(bytes32 subscriptionId,bytes32 claimId,uint64 fromEpoch,uint64 toEpoch,uint256 units,bytes32 evidenceHash,bytes32 evidenceURIHash,uint256 nonce)",
+      "typeHash": "0xa1faeb4ef291c53d9cea624928e618cd10021bab0b40f92a58689807bd1ccb82"
+    }
+  },
+  "vectors": {
+    "resourceKey": "0x2491bd8df43b21fcd186b46f8a5819bf773a751fa244818318c81b362a003920",
+    "serviceOfferHash": "0x79a282dc16a82c88b59ba0afceb6a41a1964073787b68241da04a8054d900716",
+    "capPolicyHash": "0xb1a02d892b7e418b8df34c3c87238c36f0d59e203c47040ee4783a9234c97151",
+    "acceptanceHash": "0x47f3729d559ae1e49b2d29a7738eaa4fa559941b8cda90af69176c4f1dccf30c",
+    "subscriptionId": "0xaccd1ea0e51657c2cdf3530b81983d215c7d39c28679fdaa63bb692298795b11",
+    "domainSeparator": "0x170b18a58f0508dd9afa228ec9cdcc6bc943e8cca92cda399085c305c6236298",
+    "offerDigest": "0xe1760f0ab2c945ba1a364c5cf1399eb5d13876ae0953205b89ed59ab69ffc182",
+    "usageClaimHash": "0x77bb1cfdde88a78d6e025654f2198b007f9271b766f05d78a75e8dadf369f7f4",
+    "usageClaimDigest": "0xc9c9a4ba9f1c8b164cf49058ab260737f48a29de6860d5b88431ca0746e92559"
+  },
+  "selectors": {
+    "createRail(address,address,address,address,uint256,address)": "0xf9f78de8",
+    "modifyRailLockup(uint256,uint256,uint256)": "0xde07b8bb",
+    "modifyRailPayment(uint256,uint256,uint256)": "0x97d3ea34",
+    "settleRail(uint256,uint256)": "0xbcd40bf8",
+    "terminateRail(uint256)": "0xcbb0bf18",
+    "getRail(uint256)": "0x22e440b3",
+    "getAccountInfoIfSettled(address,address)": "0x05f4c536",
+    "operatorApprovals(address,address,address)": "0xe3d4c69e",
+    "validatePayment(uint256,uint256,uint256,uint256,uint256)": "0x1a7bf46f",
+    "railTerminated(uint256,address,uint256)": "0xc5153f70",
+    "dataSetLive(uint256)": "0xca759f27",
+    "getDataSetLeafCount(uint256)": "0xa531998c",
+    "getDataSetListener(uint256)": "0x2b3129bb",
+    "getDataSetStorageProvider(uint256)": "0x21b7cd1c",
+    "getDataSetLastProvenEpoch(uint256)": "0x04595c1a",
+    "service()": "0xd598d4c9",
+    "getDataSet(uint256)": "0xbdaac056",
+    "getDataSetSizeInBytes(uint256)": "0xfe295953",
+    "getDataSetStatus(uint256)": "0x617285ad",
+    "interfaceVersion()": "0x1d8ffa4d",
+    "inspect((uint8,uint64,address,uint256,bytes32),address,bytes)": "0x50b9714c",
+    "quoteRate((bytes32,bool,bool,bool,address,address,uint256,bytes32),bytes)": "0xdeba2139",
+    "quoteUsage(uint256,bytes)": "0x1e3bfb9e"
+  }
+}

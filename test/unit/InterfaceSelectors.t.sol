@@ -40,7 +40,7 @@ contract InterfaceSelectorsTest {
         require(IBossResourceAdapter.interfaceVersion.selector == 0x1d8ffa4d, "resource version");
         require(IBossResourceAdapter.inspect.selector == 0x50b9714c, "inspect");
         require(IBossPricingAdapter.interfaceVersion.selector == 0x1d8ffa4d, "pricing version");
-        require(IBossPricingAdapter.quoteRate.selector == 0xdb65b8b2, "quoteRate");
+        require(IBossPricingAdapter.quoteRate.selector == 0xdeba2139, "quoteRate");
         require(IBossPricingAdapter.quoteUsage.selector == 0x1e3bfb9e, "quoteUsage");
     }
 }

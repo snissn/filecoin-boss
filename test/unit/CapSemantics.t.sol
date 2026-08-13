@@ -32,6 +32,6 @@ contract CapSemanticsTest {
         require(uint8(BossTypes.BillingKind.STREAM_CAPACITY) == 1, "billing kind");
         require(uint8(BossTypes.AssuranceKind.TRUSTED_METERING) == 2, "assurance kind");
         require(uint8(BossTypes.DependencyKind.HARD) == 2, "dependency kind");
-        require(uint8(BossTypes.SubscriptionState.TERMINATED) == 6, "state kind");
+        require(uint8(BossTypes.SubscriptionState.EXHAUSTED) == 6, "state kind");
     }
 }

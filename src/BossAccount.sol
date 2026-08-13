@@ -248,6 +248,11 @@ contract BossAccount is IFilecoinPayValidator {
             active ? quote.ratePerEpoch : 0,
             input.initialFixedBudget
         );
+        if (offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY) {
+            emit RateSynchronized(
+                subscriptionId, 0, quote.ratePerEpoch, acceptedEpoch, quoteValidThrough, resource.statusHash
+            );
+        }
         if (input.accessGrantHash != bytes32(0)) {
             emit AccessGrantCommitted(subscriptionId, input.accessGrantHash);
         }

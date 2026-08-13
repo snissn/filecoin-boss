@@ -35,7 +35,14 @@ jobs:
           decode_document summary docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
           decode_document diff docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
           decode_document manifest docs/manifest.json
-          decode_document archive docs/archive/FILECOIN_BOSS_SPEC_v0.1.md
+
+          # The unified diff is an exact v0.1 -> v0.2 transformation. Reverse it
+          # so the archive is reconstructed byte-for-byte without duplicating a
+          # second full source payload in the staging commit.
+          patch -R \
+            -o docs/archive/FILECOIN_BOSS_SPEC_v0.1.md \
+            docs/FILECOIN_BOSS_SPEC_v0.2.md \
+            docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
 
           rm -rf .doc-staging
 

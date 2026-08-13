@@ -24,9 +24,7 @@ contract BossAdapterRegistry {
         bytes32 codeHash,
         string metadataURI
     );
-    event AdapterActivationChanged(
-        address indexed adapter, bool activeForNewSubscriptions, bytes32 observedCodeHash
-    );
+    event AdapterActivationChanged(address indexed adapter, bool activeForNewSubscriptions, bytes32 observedCodeHash);
 
     address public governance;
 
@@ -97,11 +95,7 @@ contract BossAdapterRegistry {
         emit AdapterActivationChanged(adapter, active, observedCodeHash);
     }
 
-    function getAdapter(address adapter)
-        external
-        view
-        returns (BossTypes.AdapterRecord memory record)
-    {
+    function getAdapter(address adapter) external view returns (BossTypes.AdapterRecord memory record) {
         return _adapters[adapter];
     }
 
@@ -109,11 +103,11 @@ contract BossAdapterRegistry {
         return _registered[adapter];
     }
 
-    function isActive(
-        address adapter,
-        BossTypes.AdapterKind expectedKind,
-        uint64 expectedInterfaceVersion
-    ) external view returns (bool) {
+    function isActive(address adapter, BossTypes.AdapterKind expectedKind, uint64 expectedInterfaceVersion)
+        external
+        view
+        returns (bool)
+    {
         if (!_registered[adapter]) return false;
 
         BossTypes.AdapterRecord storage record = _adapters[adapter];

@@ -35,8 +35,7 @@ contract DummyPricingAdapter {
 }
 
 contract BossAdapterRegistryTest {
-    VmAdapterRegistry internal constant vm =
-        VmAdapterRegistry(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmAdapterRegistry internal constant vm = VmAdapterRegistry(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     function testGovernanceRegistersPinnedAdapterAndCompleteEvent() public {
         AdapterRegistryActor governance = new AdapterRegistryActor();

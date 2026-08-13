@@ -38,9 +38,7 @@ contract BossServiceRegistry {
     event ProviderMetadataUpdated(
         address indexed provider, uint64 revision, address defaultBeneficiary, string metadataURI
     );
-    event ProviderSigningKeyUpdated(
-        address indexed provider, address indexed signingKey, bool active, uint64 revision
-    );
+    event ProviderSigningKeyUpdated(address indexed provider, address indexed signingKey, bool active, uint64 revision);
     event ServicePublished(
         address indexed provider,
         bytes32 indexed serviceId,
@@ -118,9 +116,7 @@ contract BossServiceRegistry {
         uint64 serviceVersion = ++service.version;
         uint64 providerRevision = ++_providers[msg.sender].revision;
 
-        emit ServicePublished(
-            msg.sender, serviceId, serviceType, serviceVersion, providerRevision, metadataURI
-        );
+        emit ServicePublished(msg.sender, serviceId, serviceType, serviceVersion, providerRevision, metadataURI);
     }
 
     function revokeOfferNonce(uint256 nonce) external onlyRegisteredProvider {
@@ -135,11 +131,7 @@ contract BossServiceRegistry {
         return _providers[provider];
     }
 
-    function getService(address provider, bytes32 serviceId)
-        external
-        view
-        returns (ServiceRecord memory record)
-    {
+    function getService(address provider, bytes32 serviceId) external view returns (ServiceRecord memory record) {
         return _services[provider][serviceId];
     }
 

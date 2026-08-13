@@ -21,8 +21,7 @@ contract RegistryActor {
 }
 
 contract BossServiceRegistryTest {
-    VmRegistryLogs internal constant vm =
-        VmRegistryLogs(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmRegistryLogs internal constant vm = VmRegistryLogs(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     bytes32 internal constant SERVICE_ID = keccak256("filone-managed-storage");
     bytes32 internal constant SERVICE_TYPE = keccak256("managed-storage");
@@ -80,9 +79,7 @@ contract BossServiceRegistryTest {
             abi.encodeCall(BossServiceRegistry.registerProvider, ("ipfs://duplicate", address(0xCAFE)))
         );
         _mustFail(
-            outsider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.setSigningKey, (address(0xCAFE), true))
+            outsider, address(registry), abi.encodeCall(BossServiceRegistry.setSigningKey, (address(0xCAFE), true))
         );
         require(registry.isAuthorizedSigner(address(provider), signingKey), "provider signer preserved");
         require(!registry.isAuthorizedSigner(address(provider), address(0xCAFE)), "outsider signer rejected");
@@ -99,26 +96,14 @@ contract BossServiceRegistryTest {
             address(registry),
             abi.encodeCall(BossServiceRegistry.registerProvider, ("ipfs://provider", oldKey))
         );
-        _mustExecute(
-            provider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.setSigningKey, (oldKey, false))
-        );
-        _mustExecute(
-            provider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.setSigningKey, (newKey, true))
-        );
+        _mustExecute(provider, address(registry), abi.encodeCall(BossServiceRegistry.setSigningKey, (oldKey, false)));
+        _mustExecute(provider, address(registry), abi.encodeCall(BossServiceRegistry.setSigningKey, (newKey, true)));
 
         require(!registry.isAuthorizedSigner(address(provider), oldKey), "old signer revoked");
         require(registry.isAuthorizedSigner(address(provider), newKey), "new signer active");
         require(registry.getProvider(address(provider)).revision == 3, "rotation revision");
 
-        _mustFail(
-            provider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.setSigningKey, (newKey, true))
-        );
+        _mustFail(provider, address(registry), abi.encodeCall(BossServiceRegistry.setSigningKey, (newKey, true)));
     }
 
     function testProviderMetadataBeneficiaryAndServiceVersionsAreMonotonic() public {
@@ -139,18 +124,12 @@ contract BossServiceRegistryTest {
         _mustExecute(
             provider,
             address(registry),
-            abi.encodeCall(
-                BossServiceRegistry.publishService,
-                (SERVICE_ID, SERVICE_TYPE, "ipfs://service-v1")
-            )
+            abi.encodeCall(BossServiceRegistry.publishService, (SERVICE_ID, SERVICE_TYPE, "ipfs://service-v1"))
         );
         _mustExecute(
             provider,
             address(registry),
-            abi.encodeCall(
-                BossServiceRegistry.publishService,
-                (SERVICE_ID, SERVICE_TYPE, "ipfs://service-v2")
-            )
+            abi.encodeCall(BossServiceRegistry.publishService, (SERVICE_ID, SERVICE_TYPE, "ipfs://service-v2"))
         );
 
         BossServiceRegistry.ProviderRecord memory providerRecord = registry.getProvider(address(provider));
@@ -173,19 +152,11 @@ contract BossServiceRegistryTest {
             address(registry),
             abi.encodeCall(BossServiceRegistry.registerProvider, ("ipfs://provider", address(0xBEEF)))
         );
-        _mustExecute(
-            provider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.revokeOfferNonce, (uint256(77)))
-        );
+        _mustExecute(provider, address(registry), abi.encodeCall(BossServiceRegistry.revokeOfferNonce, (uint256(77))));
 
         require(registry.isOfferNonceRevoked(address(provider), 77), "nonce revoked");
         require(registry.getProvider(address(provider)).revision == 2, "nonce revision");
-        _mustFail(
-            provider,
-            address(registry),
-            abi.encodeCall(BossServiceRegistry.revokeOfferNonce, (uint256(77)))
-        );
+        _mustFail(provider, address(registry), abi.encodeCall(BossServiceRegistry.revokeOfferNonce, (uint256(77))));
     }
 
     function _mustExecute(RegistryActor actor, address target, bytes memory callData) private {

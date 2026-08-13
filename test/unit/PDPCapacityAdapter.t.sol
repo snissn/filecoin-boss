@@ -4,22 +4,14 @@ pragma solidity ^0.8.30;
 import {PDPCapacityAdapter} from "../../src/adapters/pricing/PDPCapacityAdapter.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
 
-interface VmCapacityAdapter {
-    function roll(uint256 newHeight) external;
-}
-
 contract PDPCapacityAdapterTest {
-    VmCapacityAdapter private constant vm = VmCapacityAdapter(address(uint160(uint256(keccak256("hevm cheat code")))));
-
     uint256 private constant TIB = 1 << 40;
     uint256 private constant PRICE_PER_TIB = 1 ether;
     uint64 private constant EPOCHS_PER_30_DAYS = 86_400;
-    uint64 private constant QUOTE_TTL = 2_880;
 
     PDPCapacityAdapter private adapter;
 
     function setUp() public {
-        vm.roll(100);
         adapter = new PDPCapacityAdapter();
     }
 
@@ -31,12 +23,12 @@ contract PDPCapacityAdapterTest {
         _assertRate(TIB * 10, 115_740_740_740_740);
     }
 
-    function testQuoteCommitsResourceStateAndExpiresAtAcceptedTtl() public view {
+    function testQuoteCommitsResourceAndPricingStateWithoutChoosingTtl() public view {
         BossTypes.ResourceStatus memory resource = _resource(TIB, keccak256("state-1"), true);
         BossTypes.RateQuote memory first = adapter.quoteRate(resource, _pricingData());
 
         require(first.billable, "billable");
-        require(first.validThroughEpoch == block.number + QUOTE_TTL, "quote ttl");
+        require(first.validThroughEpoch == type(uint64).max, "adapter chose ttl");
         require(first.quoteHash != bytes32(0), "quote hash");
 
         resource.statusHash = keccak256("state-2");
@@ -47,6 +39,15 @@ contract PDPCapacityAdapterTest {
         resource.sizeInBytes = TIB * 2;
         BossTypes.RateQuote memory changedSize = adapter.quoteRate(resource, _pricingData());
         require(changedSize.quoteHash != first.quoteHash, "size not committed");
+
+        bytes memory changedPricing = abi.encode(
+            PDPCapacityAdapter.CapacityTerms({
+                grossPricePerTiBPerPeriod: PRICE_PER_TIB * 2,
+                periodEpochs: EPOCHS_PER_30_DAYS
+            })
+        );
+        BossTypes.RateQuote memory changedTerms = adapter.quoteRate(resource, changedPricing);
+        require(changedTerms.quoteHash != changedSize.quoteHash, "pricing not committed");
     }
 
     function testUnavailableResourceQuotesZeroAndNonBillable() public view {
@@ -55,15 +56,14 @@ contract PDPCapacityAdapterTest {
 
         require(!quote.billable, "unavailable billable");
         require(quote.ratePerEpoch == 0, "unavailable rate");
-        require(quote.validThroughEpoch == block.number, "unavailable boundary");
+        require(quote.validThroughEpoch == type(uint64).max, "adapter chose unavailable ttl");
         require(quote.quoteHash != bytes32(0), "unavailable quote hash");
     }
 
     function testMalformedZeroAndUnsupportedUsageFailClosed() public {
         _mustFailRate(hex"");
-        _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(0, EPOCHS_PER_30_DAYS, QUOTE_TTL)));
-        _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(PRICE_PER_TIB, 0, QUOTE_TTL)));
-        _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(PRICE_PER_TIB, EPOCHS_PER_30_DAYS, 0)));
+        _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(0, EPOCHS_PER_30_DAYS)));
+        _mustFailRate(abi.encode(PDPCapacityAdapter.CapacityTerms(PRICE_PER_TIB, 0)));
 
         (bool success,) = address(adapter).call(abi.encodeCall(PDPCapacityAdapter.quoteUsage, (TIB, _pricingData())));
         require(!success, "usage pricing supported");
@@ -87,8 +87,7 @@ contract PDPCapacityAdapterTest {
         return abi.encode(
             PDPCapacityAdapter.CapacityTerms({
                 grossPricePerTiBPerPeriod: PRICE_PER_TIB,
-                periodEpochs: EPOCHS_PER_30_DAYS,
-                quoteTtlEpochs: QUOTE_TTL
+                periodEpochs: EPOCHS_PER_30_DAYS
             })
         );
     }

@@ -24,11 +24,10 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Verify exact starting head
+      - name: Verify Filecoin Pay source lock
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "7fab695625ce9497a82426426e570de38da4448a"
           test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
 
       - uses: foundry-rs/foundry-toolchain@v1

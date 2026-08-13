@@ -272,6 +272,66 @@ contract BossUsageClaimsTest {
         _mustFailClaim(subscriptionId, crossWindow, _signClaim(subscriptionId, crossWindow));
     }
 
+    function testClaimsCannotCoverPreActivationOrPriorPausedEpochs() public {
+        BossTypes.AcceptanceInput memory input = _input(10 ether, 20 ether, 10 ether, 5 ether, 42);
+        input.offer.activationKind = BossTypes.ActivationKind.PROVIDER_ACK;
+        input.providerSignature = _signOffer(input.offer);
+        (bytes32 subscriptionId,) = account.acceptOffer(input);
+
+        vm.roll(120);
+        bytes32 provisioningHash = keccak256("metered-provisioned");
+        account.acknowledgeActivation(
+            subscriptionId,
+            provisioningHash,
+            _sign(PROVIDER_KEY, account.activationAckDigest(subscriptionId, provisioningHash))
+        );
+        account.activate(subscriptionId);
+        vm.roll(140);
+
+        BossTypes.UsageClaim memory beforeActivation = _claim(42, 100, 110, TIB / 10);
+        _mustFailClaim(subscriptionId, beforeActivation, _signClaim(subscriptionId, beforeActivation));
+
+        BossTypes.UsageClaim memory active = _claim(43, 120, 130, TIB / 10);
+        require(
+            account.submitUsageClaim(subscriptionId, active, _signClaim(subscriptionId, active)) != 0,
+            "active-period claim rejected"
+        );
+
+        account.pause(subscriptionId);
+        vm.roll(160);
+        account.resume(subscriptionId);
+        vm.roll(180);
+
+        BossTypes.UsageClaim memory priorPeriod = _claim(44, 130, 140, TIB / 10);
+        _mustFailClaim(subscriptionId, priorPeriod, _signClaim(subscriptionId, priorPeriod));
+
+        BossTypes.UsageClaim memory currentPeriod = _claim(45, 160, 170, TIB / 10);
+        require(
+            account.submitUsageClaim(subscriptionId, currentPeriod, _signClaim(subscriptionId, currentPeriod)) != 0,
+            "current-period claim rejected"
+        );
+    }
+
+    function testUnlimitedMeteredCapsFailClosed() public {
+        BossTypes.AcceptanceInput memory input = _input(3 ether, 20 ether, 10 ether, 5 ether, 50);
+        input.caps.maxFixedLockup = type(uint256).max;
+        input.offer.providerMaxFixedLockup = type(uint256).max;
+        input.providerSignature = _signOffer(input.offer);
+        _mustFailAccept(input);
+
+        input = _input(3 ether, 20 ether, 10 ether, 5 ether, 51);
+        input.caps.maxSingleCharge = type(uint256).max;
+        _mustFailAccept(input);
+
+        input = _input(3 ether, 20 ether, 10 ether, 5 ether, 52);
+        input.caps.maxChargePerWindow = type(uint256).max;
+        _mustFailAccept(input);
+
+        input = _input(3 ether, 20 ether, 10 ether, 5 ether, 53);
+        input.caps.lifetimeCapGross = type(uint256).max;
+        _mustFailAccept(input);
+    }
+
     function testZeroByteClaimIsConsumedWithoutPayment() public {
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 3));
         vm.roll(120);
@@ -426,6 +486,11 @@ contract BossUsageClaimsTest {
     function _sign(uint256 key, bytes32 digest) private returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, digest);
         return abi.encodePacked(r, s, v);
+    }
+
+    function _mustFailAccept(BossTypes.AcceptanceInput memory input) private {
+        (bool success,) = address(account).call(abi.encodeCall(BossAccount.acceptOffer, (input)));
+        require(!success, "invalid metered caps accepted");
     }
 
     function _mustFailClaim(bytes32 subscriptionId, BossTypes.UsageClaim memory claim, bytes memory signature)

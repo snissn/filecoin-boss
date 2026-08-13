@@ -356,7 +356,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         if (
             claim.claimId == bytes32(0) || claim.toEpoch <= claim.fromEpoch || claim.toEpoch > block.number
-                || claim.fromEpoch < subscription.acceptedEpoch || claim.fromEpoch < subscription.lastUsageToEpoch
+                || claim.fromEpoch < subscription.activatedEpoch || claim.fromEpoch < subscription.lastUsageToEpoch
         ) revert InvalidUsageClaim();
         if (_consumedClaims[subscriptionId][claim.claimId]) {
             revert UsageClaimAlreadyConsumed(claim.claimId);
@@ -586,6 +586,8 @@ contract BossAccount is IFilecoinPayValidator {
             ratePerEpoch != 0 || caps.maxRatePerEpoch != 0 || offer.providerMaxRatePerEpoch != 0
                 || initialFixedBudget == 0 || caps.maxSingleCharge == 0 || caps.maxChargePerWindow == 0
                 || caps.lifetimeCapGross == 0 || caps.chargeWindowEpochs == 0
+                || BossTypes.isUnlimitedCap(caps.maxFixedLockup) || BossTypes.isUnlimitedCap(caps.maxSingleCharge)
+                || BossTypes.isUnlimitedCap(caps.maxChargePerWindow) || BossTypes.isUnlimitedCap(caps.lifetimeCapGross)
         ) revert InvalidCaps();
     }
 

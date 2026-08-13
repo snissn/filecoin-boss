@@ -70,7 +70,7 @@ contract BossFactoryTest {
         require(first.code.length != 0, "idempotent code");
     }
 
-    function testEveryAuthorityAndConfigurationInputAffectsAddress() public {
+    function testEveryAuthorityAndRegistryInputAffectsAddress() public {
         BossFactory factory = new BossFactory();
         address base = factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION);
 
@@ -90,10 +90,37 @@ contract BossFactoryTest {
             base != factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, address(0xADA8), VERSION),
             "adapter registry affects address"
         );
-        require(
-            base != factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION + 1),
-            "version affects address"
+    }
+
+    function testUnsupportedAccountVersionsFailClosed() public {
+        BossFactory factory = new BossFactory();
+        FactoryActor caller = new FactoryActor();
+
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(BossFactory.accountKey, (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2)))
         );
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(
+                BossFactory.predictAccount, (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2))
+            )
+        );
+        _mustFail(
+            caller,
+            address(factory),
+            abi.encodeCall(
+                BossFactory.createAccount, (OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2))
+            )
+        );
+
+        try new BossAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2)) returns (
+            BossAccount
+        ) {
+            revert("unsupported account version deployed");
+        } catch {}
     }
 
     function testAnyoneMayDeployButCannotAcquireOwnerAuthority() public {

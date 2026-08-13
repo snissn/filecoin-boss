@@ -1,57 +1,40 @@
-name: Assemble Filecoin Boss document package
+name: Finalize Filecoin Boss document package
 
 on:
   push:
     paths:
-      - ".doc-staging/READY"
+      - ".summary-repair/READY"
 
 permissions:
   contents: write
 
 jobs:
-  assemble:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Assemble exact source documents
+      - name: Publish and verify the exact human summary
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p docs/archive
+          cat .summary-repair/*.b64part \
+            | base64 --decode \
+            | gzip --decompress \
+            > docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
 
-          decode_document() {
-            local source_dir="$1"
-            local target="$2"
-            local encoded="/tmp/${source_dir}.b64"
-            local compressed="/tmp/${source_dir}.gz"
-            echo "assembling ${source_dir}"
-            cat ".doc-staging/${source_dir}"/*.b64part > "$encoded"
-            wc -c "$encoded"
-            base64 --decode "$encoded" > "$compressed"
-            gzip --test "$compressed"
-            gzip --decompress --stdout "$compressed" > "$target"
-          }
+          printf '%s  %s\n' \
+            'a66584a8885ebc8283ea5f017f1d26ea06891b01f36ab28e12233579ed3c2317' \
+            'docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md' \
+            | sha256sum --check --strict
 
-          decode_document spec docs/FILECOIN_BOSS_SPEC_v0.2.md
-          decode_document impl docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0.1.md
-          decode_document api docs/FILECOIN_BOSS_API_AND_EVENT_DRAFT_v0.1.md
-          decode_document test docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0.1.md
-          decode_document summary docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
-          decode_document diff docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
-          decode_document manifest docs/manifest.json
-
-          patch -R \
-            -o docs/archive/FILECOIN_BOSS_SPEC_v0.1.md \
-            docs/FILECOIN_BOSS_SPEC_v0.2.md \
-            docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
-
-          rm -rf .doc-staging
+          rm -rf .summary-repair
+          git rm .github/workflows/assemble-document-package.yml
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "docs: publish complete Filecoin Boss specification package"
+          git commit -m "docs: finalize exact Filecoin Boss document package"
           git push

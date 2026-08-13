@@ -40,8 +40,10 @@ jobs:
         run: |
           set -euo pipefail
           base64 -d .github/a8-closeout-size-fix.b64 > /tmp/a8-closeout-size-fix.py
+          base64 -d .github/a8-closeout-final-size-fix.b64 > /tmp/a8-closeout-final-size-fix.py
           python3 .github/a8-closeout-repair.py
           python3 /tmp/a8-closeout-size-fix.py
+          python3 /tmp/a8-closeout-final-size-fix.py
 
       - name: Format, build, and test
         shell: bash
@@ -63,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/a8-closeout-repair.py .github/a8-closeout-size-fix.b64 .github/workflows/a8-closeout-repair-now.yml
+          rm -f .github/a8-closeout-repair.py .github/a8-closeout-size-fix.b64 .github/a8-closeout-final-size-fix.b64 .github/workflows/a8-closeout-repair-now.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A

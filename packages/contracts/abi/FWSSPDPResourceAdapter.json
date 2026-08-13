@@ -1,0 +1,303 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pdpVerifier_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "fwssService_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "fwssStateView_",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "fwssService",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "fwssStateView",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum BossTypes.ResourceKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint64",
+            "name": "chainId",
+            "type": "uint64"
+          },
+          {
+            "internalType": "address",
+            "name": "anchor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "resourceId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "context",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct BossTypes.ResourceRef",
+        "name": "resource",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "expectedPayer",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "resourceData",
+        "type": "bytes"
+      }
+    ],
+    "name": "inspect",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "resourceKey",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bool",
+            "name": "exists",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "attachable",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "billable",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "payer",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "storageProvider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sizeInBytes",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "statusHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct BossTypes.ResourceStatus",
+        "name": "status",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "interfaceVersion",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pdpVerifier",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "resourceContext",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "dataSetId",
+        "type": "uint256"
+      }
+    ],
+    "name": "DataSetNotActive",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "dataSetId",
+        "type": "uint256"
+      }
+    ],
+    "name": "DataSetNotLive",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "dataSetId",
+        "type": "uint256"
+      }
+    ],
+    "name": "InvalidDataSetRecord",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidDeployment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidExpectedPayer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidResource",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "expected",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "observed",
+        "type": "address"
+      }
+    ],
+    "name": "ListenerMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "expected",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "observed",
+        "type": "address"
+      }
+    ],
+    "name": "PayerMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "expected",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "observed",
+        "type": "address"
+      }
+    ],
+    "name": "StateViewServiceMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pdpProvider",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "fwssProvider",
+        "type": "address"
+      }
+    ],
+    "name": "StorageProviderMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnexpectedResourceData",
+    "type": "error"
+  }
+]

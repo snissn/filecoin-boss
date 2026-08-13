@@ -1,0 +1,47 @@
+{
+  "contracts": [
+    {
+      "abi": "abi/BossAccount.json",
+      "creationCode": "bytecode/BossAccount.creation.hex",
+      "creationCodeHash": "0x89a21173a9657fd39a8d07690191e031b305a9f1f965ad995bc935f93db15dd0",
+      "name": "BossAccount"
+    },
+    {
+      "abi": "abi/BossFactory.json",
+      "name": "BossFactory"
+    },
+    {
+      "abi": "abi/BossServiceRegistry.json",
+      "name": "BossServiceRegistry"
+    },
+    {
+      "abi": "abi/BossAdapterRegistry.json",
+      "name": "BossAdapterRegistry"
+    },
+    {
+      "abi": "abi/BossBundles.json",
+      "name": "BossBundles"
+    },
+    {
+      "abi": "abi/BossStateView.json",
+      "name": "BossStateView"
+    },
+    {
+      "abi": "abi/FlatRateAdapter.json",
+      "name": "FlatRateAdapter"
+    },
+    {
+      "abi": "abi/PDPCapacityAdapter.json",
+      "name": "PDPCapacityAdapter"
+    },
+    {
+      "abi": "abi/CappedMeteredAdapter.json",
+      "name": "CappedMeteredAdapter"
+    },
+    {
+      "abi": "abi/FWSSPDPResourceAdapter.json",
+      "name": "FWSSPDPResourceAdapter"
+    }
+  ],
+  "schemaVersion": 1
+}

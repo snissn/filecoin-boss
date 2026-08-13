@@ -1,0 +1,283 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "accountCreationCodeHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "accountKey_",
+        "type": "bytes32"
+      }
+    ],
+    "name": "accountFor",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "filecoinPay",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "serviceRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "adapterRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "accountVersion",
+        "type": "uint64"
+      }
+    ],
+    "name": "accountKey",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "filecoinPay",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "serviceRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "adapterRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "accountVersion",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes",
+        "name": "accountCreationCode",
+        "type": "bytes"
+      }
+    ],
+    "name": "createAccount",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "filecoinPay",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "serviceRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "adapterRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "accountVersion",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes",
+        "name": "accountCreationCode",
+        "type": "bytes"
+      }
+    ],
+    "name": "predictAccount",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "filecoinPay",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "serviceRegistry",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "adapterRegistry",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "accountVersion",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "accountKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "BossAccountCreated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "accountKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AccountDeploymentFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "expected",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "observed",
+        "type": "bytes32"
+      }
+    ],
+    "name": "InvalidAccountCreationCode",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAccountVersion",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAdapterRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFilecoinPay",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidServiceRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "predicted",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "deployed",
+        "type": "address"
+      }
+    ],
+    "name": "UnexpectedDeploymentAddress",
+    "type": "error"
+  }
+]

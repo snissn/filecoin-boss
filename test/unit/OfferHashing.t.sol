@@ -9,6 +9,12 @@ contract OfferHashingTest is BossVectorFixture {
         string memory json = _vectorJson();
 
         require(
+            keccak256(bytes(_string(json, ".domain.canonical"))) == _bytes32(json, ".domain.typeHash"),
+            "domain typehash"
+        );
+        require(keccak256(bytes(_string(json, ".domain.name"))) == keccak256("Filecoin Boss"), "domain name");
+        require(keccak256(bytes(_string(json, ".domain.version"))) == keccak256("1"), "domain version");
+        require(
             keccak256(bytes(_string(json, ".types.ServiceOffer.canonical"))) == BossHashes.serviceOfferTypehash(),
             "service offer canonical type"
         );

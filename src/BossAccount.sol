@@ -75,8 +75,7 @@ contract BossAccount is IFilecoinPayValidator {
         uint256 newRate,
         uint64 quoteEpoch,
         uint64 validThroughEpoch,
-        bytes32 resourceStatusHash,
-        bytes32 quoteHash
+        bytes32 resourceStatusHash
     );
     event SubscriptionPaused(bytes32 indexed subscriptionId, uint64 pausedEpoch);
     event PauseRateUpdateDeferred(bytes32 indexed subscriptionId, bytes reason);
@@ -252,13 +251,7 @@ contract BossAccount is IFilecoinPayValidator {
         );
         if (offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY) {
             emit RateSynchronized(
-                subscriptionId,
-                0,
-                quote.ratePerEpoch,
-                acceptedEpoch,
-                quoteValidThrough,
-                resource.statusHash,
-                quote.quoteHash
+                subscriptionId, 0, quote.ratePerEpoch, acceptedEpoch, quoteValidThrough, resource.statusHash
             );
         }
         if (input.accessGrantHash != bytes32(0)) {
@@ -353,7 +346,7 @@ contract BossAccount is IFilecoinPayValidator {
         subscription.quoteValidThroughEpoch = validThrough;
 
         emit RateSynchronized(
-            subscriptionId, oldRate, quote.ratePerEpoch, quoteEpoch, validThrough, resource.statusHash, quote.quoteHash
+            subscriptionId, oldRate, quote.ratePerEpoch, quoteEpoch, validThrough, resource.statusHash
         );
     }
 

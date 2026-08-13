@@ -11,8 +11,16 @@ import {BossTypes} from "../../src/libraries/BossTypes.sol";
 import {MockERC1271Signer, MockFilecoinPayV1} from "../unit/BossAccountFlatLifecycle.t.sol";
 
 interface VmCapacityLifecycle {
+    struct Log {
+        bytes32[] topics;
+        bytes data;
+        address emitter;
+    }
+
     function prank(address sender) external;
     function roll(uint256 newHeight) external;
+    function recordLogs() external;
+    function getRecordedLogs() external returns (Log[] memory logs);
 }
 
 contract MutableCapacityResourceAdapter is IBossResourceAdapter {
@@ -126,6 +134,44 @@ contract PDPCapacityLifecycleTest {
         account.syncRate(subscriptionId);
         require(pay.getRail(railId).paymentRate == ONE_TIB_RATE * 2, "same-state sync changed rate");
         require(pay.settledGross(railId) == ONE_TIB_RATE * 5, "same-state sync charged again");
+    }
+
+    function testRateSyncEventCarriesRequiredProvenance() public {
+        (bytes32 subscriptionId,) = account.acceptOffer(_input(10, type(uint256).max));
+        resourceAdapter.setSize(TIB * 2);
+        BossTypes.ResourceStatus memory expected = resourceAdapter.inspect(
+            BossTypes.ResourceRef({
+                kind: BossTypes.ResourceKind.FWSS_PDP_DATASET,
+                chainId: uint64(block.chainid),
+                anchor: address(0xF00D),
+                resourceId: 42,
+                context: bytes32(0)
+            }),
+            address(this),
+            bytes("")
+        );
+
+        vm.roll(105);
+        vm.recordLogs();
+        account.syncRate(subscriptionId);
+        VmCapacityLifecycle.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 signature = keccak256("RateSynchronized(bytes32,uint256,uint256,uint64,uint64,bytes32)");
+        bool found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(account) || logs[i].topics.length != 2 || logs[i].topics[0] != signature) {
+                continue;
+            }
+            require(logs[i].topics[1] == subscriptionId, "event subscription");
+            (uint256 oldRate, uint256 newRate, uint64 quoteEpoch, uint64 validThrough, bytes32 statusHash) =
+                abi.decode(logs[i].data, (uint256, uint256, uint64, uint64, bytes32));
+            require(oldRate == ONE_TIB_RATE, "event old rate");
+            require(newRate == ONE_TIB_RATE * 2, "event new rate");
+            require(quoteEpoch == 105, "event quote epoch");
+            require(validThrough == 115, "event validity");
+            require(statusHash == expected.statusHash, "event resource state");
+            found = true;
+        }
+        require(found, "rate sync event missing");
     }
 
     function testExpiredQuoteAdvancesSettlementWithZeroUntilRefresh() public {

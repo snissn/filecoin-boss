@@ -1,0 +1,14 @@
+# Foundry
+out/
+cache/
+broadcast/
+coverage/
+
+# Local configuration and tooling
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode/
+.idea/

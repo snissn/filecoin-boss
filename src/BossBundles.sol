@@ -49,12 +49,10 @@ contract BossBundles {
 
     mapping(bytes32 bundleId => StoredBundle bundle) private _bundles;
 
-    function createBundle(
-        address account,
-        bytes32 manifestHash,
-        uint64 version,
-        bytes32[] calldata subscriptionIds
-    ) external returns (bytes32 bundleId) {
+    function createBundle(address account, bytes32 manifestHash, uint64 version, bytes32[] calldata subscriptionIds)
+        external
+        returns (bytes32 bundleId)
+    {
         if (account == address(0) || account.code.length == 0) revert InvalidAccount();
         if (manifestHash == bytes32(0)) revert InvalidManifest();
         if (version == 0) revert InvalidVersion();
@@ -69,15 +67,13 @@ contract BossBundles {
         bytes32 resourceKey = first.resourceKey;
         if (resourceKey == bytes32(0)) revert ResourceMismatch(bytes32(0), resourceKey);
 
-        bundleId = keccak256(
-            abi.encode("FILECOIN_BOSS_BUNDLE_V1", msg.sender, account, resourceKey, manifestHash, version)
-        );
+        bundleId =
+            keccak256(abi.encode("FILECOIN_BOSS_BUNDLE_V1", msg.sender, account, resourceKey, manifestHash, version));
         if (_bundles[bundleId].bundle.bundleId != bytes32(0)) revert BundleAlreadyExists(bundleId);
 
         for (uint256 i; i < count; ++i) {
             bytes32 subscriptionId = subscriptionIds[i];
-            BossTypes.Subscription memory subscription =
-                IBossBundleAccount(account).getSubscription(subscriptionId);
+            BossTypes.Subscription memory subscription = IBossBundleAccount(account).getSubscription(subscriptionId);
             if (subscription.state == BossTypes.SubscriptionState.NONE) revert UnknownSubscription(subscriptionId);
             if (subscription.resourceKey != resourceKey) {
                 revert ResourceMismatch(resourceKey, subscription.resourceKey);
@@ -131,7 +127,9 @@ contract BossBundles {
         uint256 end = offset + limit;
         if (end > count) end = count;
         subscriptionIds = new bytes32[](end - offset);
-        for (uint256 i = offset; i < end; ++i) subscriptionIds[i - offset] = stored.componentIds[i];
+        for (uint256 i = offset; i < end; ++i) {
+            subscriptionIds[i - offset] = stored.componentIds[i];
+        }
     }
 
     function _requireBundle(bytes32 bundleId) private view returns (StoredBundle storage stored) {

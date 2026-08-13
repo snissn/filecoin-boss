@@ -66,8 +66,7 @@ contract BossBundlesTest {
         require(pastEnd.length == 0, "past-end page");
 
         _mustFail(
-            address(bundles),
-            abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, subscriptionIds))
+            address(bundles), abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, subscriptionIds))
         );
     }
 
@@ -98,7 +97,9 @@ contract BossBundlesTest {
         );
 
         bytes32[] memory oversized = new bytes32[](bundles.MAX_COMPONENTS() + 1);
-        for (uint256 i; i < oversized.length; ++i) oversized[i] = bytes32(i + 1);
+        for (uint256 i; i < oversized.length; ++i) {
+            oversized[i] = bytes32(i + 1);
+        }
         _mustFail(
             address(bundles), abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, oversized))
         );

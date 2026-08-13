@@ -117,12 +117,10 @@ contract BossStateView {
         _requirePinnedAdapter(registryAddress, subscription_.resourceAdapter, BossTypes.AdapterKind.RESOURCE);
         _requirePinnedAdapter(registryAddress, subscription_.pricingAdapter, BossTypes.AdapterKind.PRICING);
 
-        snapshot.resource = IBossResourceAdapter(subscription_.resourceAdapter).inspect(
-            resource, account_.payer(), resourceData
-        );
+        snapshot.resource =
+            IBossResourceAdapter(subscription_.resourceAdapter).inspect(resource, account_.payer(), resourceData);
         if (snapshot.resource.resourceKey != subscription_.resourceKey) revert ResourceMismatch();
-        snapshot.quote =
-            IBossPricingAdapter(subscription_.pricingAdapter).quoteRate(snapshot.resource, pricingData);
+        snapshot.quote = IBossPricingAdapter(subscription_.pricingAdapter).quoteRate(snapshot.resource, pricingData);
     }
 
     function _subscription(IBossAccountRead account_, address accountAddress, bytes32 subscriptionId)

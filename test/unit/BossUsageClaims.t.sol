@@ -205,8 +205,8 @@ contract BossUsageClaimsTest {
     }
 
     function testClaimsAreBoundedBySingleWindowLifetimeAndBudgetCaps() public {
-        vm.roll(250);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(10 ether, 9 ether, 5 ether, 2 ether, 1));
+        vm.roll(250);
 
         uint256 charged1 = account.submitUsageClaim(
             subscriptionId, _claim(1, 100, 110, TIB), _signClaim(subscriptionId, _claim(1, 100, 110, TIB))
@@ -246,8 +246,8 @@ contract BossUsageClaimsTest {
     }
 
     function testReplayOverlapWrongReporterFutureAndCrossWindowClaimsFailClosed() public {
-        vm.roll(250);
         (bytes32 subscriptionId,) = account.acceptOffer(_input(10 ether, 20 ether, 10 ether, 5 ether, 2));
+        vm.roll(250);
         BossTypes.UsageClaim memory claim = _claim(10, 100, 110, TIB / 10);
         bytes memory signature = _signClaim(subscriptionId, claim);
         account.submitUsageClaim(subscriptionId, claim, signature);
@@ -272,8 +272,8 @@ contract BossUsageClaimsTest {
     }
 
     function testZeroByteClaimIsConsumedWithoutPayment() public {
-        vm.roll(120);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 3));
+        vm.roll(120);
         BossTypes.UsageClaim memory claim = _claim(20, 100, 110, 0);
 
         require(account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim)) == 0, "zero charge");
@@ -282,8 +282,8 @@ contract BossUsageClaimsTest {
     }
 
     function testOnlyOwnerCanTopUpAndTopUpCannotExceedAcceptedCap() public {
-        vm.roll(120);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 4));
+        vm.roll(120);
         BossTypes.UsageClaim memory claim = _claim(30, 100, 110, TIB);
         account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
         require(pay.getRail(railId).lockupFixed == 0, "budget exhausted");

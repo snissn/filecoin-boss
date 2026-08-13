@@ -301,11 +301,7 @@ contract BossAccount is IFilecoinPayValidator {
         _requireNotExpired(subscription);
         _requireCurrentCapacityQuote(subscription);
 
-        uint256 currentEpoch = block.number;
-        (,,,, uint256 finalSettledEpoch,) = IFilecoinPayV1(filecoinPay).settleRail(subscription.railId, currentEpoch);
-        if (finalSettledEpoch != currentEpoch) {
-            revert RailNotCurrent(subscription.railId, currentEpoch, finalSettledEpoch);
-        }
+        _settleCurrent(subscription.railId);
         IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, subscription.acceptedRatePerEpoch, 0);
         uint64 activatedEpoch = _epoch();
         subscription.activatedEpoch = activatedEpoch;
@@ -326,11 +322,7 @@ contract BossAccount is IFilecoinPayValidator {
         _requireNotExpired(subscription);
 
         IFilecoinPayV1 pay = IFilecoinPayV1(filecoinPay);
-        uint256 currentEpoch = block.number;
-        (,,,, uint256 finalSettledEpoch,) = pay.settleRail(subscription.railId, currentEpoch);
-        if (finalSettledEpoch != currentEpoch) {
-            revert RailNotCurrent(subscription.railId, currentEpoch, finalSettledEpoch);
-        }
+        _settleCurrent(subscription.railId);
 
         _requirePinnedAdapterCode(subscription.resourceAdapter, BossTypes.AdapterKind.RESOURCE);
         _requirePinnedAdapterCode(subscription.pricingAdapter, BossTypes.AdapterKind.PRICING);
@@ -391,11 +383,7 @@ contract BossAccount is IFilecoinPayValidator {
         _requireNotExpired(subscription);
         _requireCurrentCapacityQuote(subscription);
 
-        uint256 currentEpoch = block.number;
-        (,,,, uint256 finalSettledEpoch,) = IFilecoinPayV1(filecoinPay).settleRail(subscription.railId, currentEpoch);
-        if (finalSettledEpoch != currentEpoch) {
-            revert RailNotCurrent(subscription.railId, currentEpoch, finalSettledEpoch);
-        }
+        _settleCurrent(subscription.railId);
         IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, subscription.acceptedRatePerEpoch, 0);
 
         uint64 resumedEpoch = _epoch();
@@ -697,6 +685,12 @@ contract BossAccount is IFilecoinPayValidator {
                 || BossTypes.isUnlimitedCap(caps.maxFixedLockup) || BossTypes.isUnlimitedCap(caps.maxSingleCharge)
                 || BossTypes.isUnlimitedCap(caps.maxChargePerWindow) || BossTypes.isUnlimitedCap(caps.lifetimeCapGross)
         ) revert InvalidCaps();
+    }
+
+    function _settleCurrent(uint256 railId) private {
+        uint256 currentEpoch = block.number;
+        (,,,, uint256 finalSettledEpoch,) = IFilecoinPayV1(filecoinPay).settleRail(railId, currentEpoch);
+        if (finalSettledEpoch != currentEpoch) revert RailNotCurrent(railId, currentEpoch, finalSettledEpoch);
     }
 
     function _validateCapacityQuote(BossTypes.ResourceStatus memory resource, BossTypes.RateQuote memory quote)

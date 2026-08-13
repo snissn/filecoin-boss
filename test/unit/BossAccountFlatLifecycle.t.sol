@@ -18,9 +18,8 @@ contract BossAccountFlatLifecycleTest {
     function testFlatRateUsesFloorDivision() public {
         FlatRateAdapter adapter = new FlatRateAdapter();
         BossTypes.ResourceStatus memory resource;
-        bytes memory pricingData = abi.encode(
-            FlatRateAdapter.FlatRateTerms({grossPricePerPeriod: 1_000, periodEpochs: 30})
-        );
+        bytes memory pricingData =
+            abi.encode(FlatRateAdapter.FlatRateTerms({grossPricePerPeriod: 1_000, periodEpochs: 30}));
 
         BossTypes.RateQuote memory quote = adapter.quoteRate(resource, pricingData);
         require(quote.ratePerEpoch == 33, "floor rate");

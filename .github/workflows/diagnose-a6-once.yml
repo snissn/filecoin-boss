@@ -1,0 +1,42 @@
+name: Diagnose A6 build once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-8-pdp-capacity-pricing
+    paths:
+      - .github/diagnose-a6-once
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-8-pdp-capacity-pricing
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Capture build diagnostics
+        shell: bash
+        run: |
+          set +e
+          forge build --sizes > .github/a6-build.txt 2>&1
+          status=$?
+          set -e
+          printf '\nexit_status=%s\n' "$status" >> .github/a6-build.txt
+          rm -f .github/diagnose-a6-once .github/workflows/diagnose-a6-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f .github/a6-build.txt
+          git add -A
+          git commit -m "chore: capture A6 build diagnostics"
+          git push origin HEAD:gpt56/issue-8-pdp-capacity-pricing

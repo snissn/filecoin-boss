@@ -116,9 +116,7 @@ contract BossFactoryTest {
             )
         );
 
-        try new BossAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2)) returns (
-            BossAccount
-        ) {
+        try new BossAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, uint64(2)) returns (BossAccount) {
             revert("unsupported account version deployed");
         } catch {}
     }

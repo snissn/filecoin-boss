@@ -32,4 +32,11 @@ jobs:
         run: forge build --sizes
 
       - name: Test
-        run: forge test -vvv
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find test -type f -name '*.sol' -print -quit 2>/dev/null | grep -q .; then
+            forge test -vvv
+          else
+            echo 'No Solidity tests yet; issue #2 uses the documented bootstrap exception.'
+          fi

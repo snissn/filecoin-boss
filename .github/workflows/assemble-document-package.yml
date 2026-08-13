@@ -21,14 +21,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p docs/archive
-          cat .doc-staging/spec/*.part > docs/FILECOIN_BOSS_SPEC_v0.2.md
-          cat .doc-staging/impl/*.part > docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0.1.md
-          cat .doc-staging/api/*.part > docs/FILECOIN_BOSS_API_AND_EVENT_DRAFT_v0.1.md
-          cat .doc-staging/test/*.part > docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0.1.md
-          cat .doc-staging/summary/*.part > docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
-          cat .doc-staging/diff/*.part > docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
-          cat .doc-staging/manifest/*.part > docs/manifest.json
-          cat .doc-staging/archive/*.part > docs/archive/FILECOIN_BOSS_SPEC_v0.1.md
+
+          decode_document() {
+            local source_dir="$1"
+            local target="$2"
+            cat ".doc-staging/${source_dir}"/*.b64part | base64 --decode | gzip --decompress > "$target"
+          }
+
+          decode_document spec docs/FILECOIN_BOSS_SPEC_v0.2.md
+          decode_document impl docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0.1.md
+          decode_document api docs/FILECOIN_BOSS_API_AND_EVENT_DRAFT_v0.1.md
+          decode_document test docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0.1.md
+          decode_document summary docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md
+          decode_document diff docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff
+          decode_document manifest docs/manifest.json
+          decode_document archive docs/archive/FILECOIN_BOSS_SPEC_v0.1.md
 
           rm -rf .doc-staging
 

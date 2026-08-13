@@ -1,0 +1,45 @@
+name: Reduce A6 account size once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-8-pdp-capacity-pricing
+    paths:
+      - .github/reduce-a6-account-once
+
+permissions:
+  contents: write
+
+jobs:
+  reduce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-8-pdp-capacity-pricing
+          fetch-depth: 0
+          submodules: recursive
+
+      - run: python3 .github/reduce-a6-account.py
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit reduction and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/reduce-a6-account-once \
+            .github/reduce-a6-account.py \
+            .github/workflows/reduce-a6-account-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "refactor: reduce capacity account state surface"
+          git push origin HEAD:gpt56/issue-8-pdp-capacity-pricing

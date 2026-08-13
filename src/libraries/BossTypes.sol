@@ -163,6 +163,7 @@ library BossTypes {
         uint64 acceptedEpoch;
         uint64 activatedEpoch;
         uint64 quoteValidThroughEpoch;
+        uint64 quoteTtlEpochs;
         uint64 pausedEpoch;
         uint64 terminationRequestedEpoch;
         uint64 payEndEpoch;

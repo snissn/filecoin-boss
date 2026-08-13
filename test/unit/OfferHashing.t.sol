@@ -20,26 +20,17 @@ contract OfferHashingTest is BossVectorFixture {
             keccak256(bytes(_string(json, ".types.CapPolicy.canonical"))) == BossHashes.capPolicyTypehash(),
             "cap policy canonical type"
         );
-        require(
-            BossHashes.capPolicyTypehash() == _bytes32(json, ".types.CapPolicy.typeHash"),
-            "cap policy typehash"
-        );
+        require(BossHashes.capPolicyTypehash() == _bytes32(json, ".types.CapPolicy.typeHash"), "cap policy typehash");
         require(
             keccak256(bytes(_string(json, ".types.Acceptance.canonical"))) == BossHashes.acceptanceTypehash(),
             "acceptance canonical type"
         );
-        require(
-            BossHashes.acceptanceTypehash() == _bytes32(json, ".types.Acceptance.typeHash"),
-            "acceptance typehash"
-        );
+        require(BossHashes.acceptanceTypehash() == _bytes32(json, ".types.Acceptance.typeHash"), "acceptance typehash");
         require(
             keccak256(bytes(_string(json, ".types.UsageClaim.canonical"))) == BossHashes.usageClaimTypehash(),
             "usage claim canonical type"
         );
-        require(
-            BossHashes.usageClaimTypehash() == _bytes32(json, ".types.UsageClaim.typeHash"),
-            "usage claim typehash"
-        );
+        require(BossHashes.usageClaimTypehash() == _bytes32(json, ".types.UsageClaim.typeHash"), "usage claim typehash");
     }
 
     function testOfferAndCapHashVectors() public view {
@@ -71,9 +62,8 @@ contract OfferHashingTest is BossVectorFixture {
 
     function testEip712OfferDigestVector() public view {
         string memory json = _vectorJson();
-        bytes32 domainSeparator = BossHashes.domainSeparator(
-            _uint(json, ".domain.chainId"), _address(json, ".domain.verifyingContract")
-        );
+        bytes32 domainSeparator =
+            BossHashes.domainSeparator(_uint(json, ".domain.chainId"), _address(json, ".domain.verifyingContract"));
         bytes32 offerHash = BossHashes.hashServiceOffer(_offer(json));
 
         require(domainSeparator == _bytes32(json, ".vectors.domainSeparator"), "domain separator");
@@ -87,13 +77,11 @@ contract OfferHashingTest is BossVectorFixture {
         string memory json = _vectorJson();
         bytes32 offerHash = BossHashes.hashServiceOffer(_offer(json));
         bytes32 resourceKey = BossHashes.hashResource(_resource(json));
-        bytes32 subscriptionId = BossHashes.deriveSubscriptionId(
-            _address(json, ".inputs.subscription.account"), offerHash, resourceKey
-        );
+        bytes32 subscriptionId =
+            BossHashes.deriveSubscriptionId(_address(json, ".inputs.subscription.account"), offerHash, resourceKey);
         bytes32 claimHash = BossHashes.hashUsageClaim(subscriptionId, _usageClaim(json));
-        bytes32 domainSeparator = BossHashes.domainSeparator(
-            _uint(json, ".domain.chainId"), _address(json, ".domain.verifyingContract")
-        );
+        bytes32 domainSeparator =
+            BossHashes.domainSeparator(_uint(json, ".domain.chainId"), _address(json, ".domain.verifyingContract"));
 
         require(subscriptionId == _bytes32(json, ".vectors.subscriptionId"), "subscription id");
         require(claimHash == _bytes32(json, ".vectors.usageClaimHash"), "claim hash");

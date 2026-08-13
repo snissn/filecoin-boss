@@ -8,9 +8,7 @@ contract ResourceKeyTest is BossVectorFixture {
     function testFwssPdpResourceKeyVector() public view {
         string memory json = _vectorJson();
 
-        require(
-            BossHashes.hashResource(_resource(json)) == _bytes32(json, ".vectors.resourceKey"), "resource key"
-        );
+        require(BossHashes.hashResource(_resource(json)) == _bytes32(json, ".vectors.resourceKey"), "resource key");
     }
 
     function testSubscriptionIdVector() public view {
@@ -19,9 +17,8 @@ contract ResourceKeyTest is BossVectorFixture {
         bytes32 resourceKey = BossHashes.hashResource(_resource(json));
 
         require(
-            BossHashes.deriveSubscriptionId(
-                _address(json, ".inputs.subscription.account"), offerHash, resourceKey
-            ) == _bytes32(json, ".vectors.subscriptionId"),
+            BossHashes.deriveSubscriptionId(_address(json, ".inputs.subscription.account"), offerHash, resourceKey)
+                == _bytes32(json, ".vectors.subscriptionId"),
             "subscription id"
         );
     }

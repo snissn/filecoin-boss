@@ -13,8 +13,7 @@ interface VmVectorFile {
 }
 
 abstract contract BossVectorFixture {
-    VmVectorFile internal constant vm =
-        VmVectorFile(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmVectorFile internal constant vm = VmVectorFile(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     string internal constant VECTOR_PATH = "test/vectors/boss-v1.json";
 
@@ -68,9 +67,7 @@ abstract contract BossVectorFixture {
             assuranceKind: BossTypes.AssuranceKind(_uint(json, ".inputs.offer.assuranceKind")),
             dependencyKind: BossTypes.DependencyKind(_uint(json, ".inputs.offer.dependencyKind")),
             activationKind: BossTypes.ActivationKind(_uint(json, ".inputs.offer.activationKind")),
-            terminationBillingKind: BossTypes.TerminationBillingKind(
-                _uint(json, ".inputs.offer.terminationBillingKind")
-            ),
+            terminationBillingKind: BossTypes.TerminationBillingKind(_uint(json, ".inputs.offer.terminationBillingKind")),
             pricingDataHash: _bytes32(json, ".inputs.offer.pricingDataHash"),
             termsHash: _bytes32(json, ".inputs.offer.termsHash"),
             accessScopeHash: _bytes32(json, ".inputs.offer.accessScopeHash"),

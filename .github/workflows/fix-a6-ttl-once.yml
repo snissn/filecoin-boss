@@ -1,0 +1,42 @@
+name: Fix A6 TTL authority once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-8-pdp-capacity-pricing
+    paths:
+      - .github/fix-a6-ttl-once
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-8-pdp-capacity-pricing
+          fetch-depth: 0
+          submodules: recursive
+
+      - run: python .github/fix-a6-ttl.py
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit repair and remove one-shot files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/fix-a6-ttl-once .github/fix-a6-ttl.py .github/workflows/fix-a6-ttl-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: make signed offer own capacity TTL"
+          git push origin HEAD:gpt56/issue-8-pdp-capacity-pricing

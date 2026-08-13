@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {BossAdapterRegistry} from "../../src/BossAdapterRegistry.sol";
 import {BossStateView} from "../../src/BossStateView.sol";
 import {IBossPricingAdapter} from "../../src/interfaces/IBossPricingAdapter.sol";
 import {IBossResourceAdapter} from "../../src/interfaces/IBossResourceAdapter.sol";
@@ -37,6 +38,10 @@ contract MockStateAccount {
         owner = owner_;
         payer = owner_;
         filecoinPay = pay_;
+    }
+
+    function setAdapterRegistry(address adapterRegistry_) external {
+        adapterRegistry = adapterRegistry_;
     }
 
     function setSubscription(bytes32 subscriptionId, BossTypes.Subscription memory subscription, bool acknowledged)
@@ -196,6 +201,10 @@ contract BossStateViewTest {
         MockStateAccount account = new MockStateAccount(address(this), address(pay));
         MockStateResourceAdapter resourceAdapter = new MockStateResourceAdapter();
         MockStatePricingAdapter pricingAdapter = new MockStatePricingAdapter();
+        BossAdapterRegistry registry = new BossAdapterRegistry(address(this));
+        registry.registerAdapter(address(resourceAdapter), BossTypes.AdapterKind.RESOURCE, 1, "ipfs://mock-resource");
+        registry.registerAdapter(address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://mock-pricing");
+        account.setAdapterRegistry(address(registry));
         BossStateView stateView = new BossStateView();
 
         BossTypes.ResourceRef memory resource = BossTypes.ResourceRef({

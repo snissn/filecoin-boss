@@ -203,6 +203,12 @@ contract PDPCapacityLifecycleTest {
         require(account.getSubscription(activeId).state == BossTypes.SubscriptionState.ACTIVE, "resume failed");
     }
 
+    function testCapacityRejectsNonEmptyResourceData() public {
+        BossTypes.AcceptanceInput memory input = _input(9, type(uint256).max);
+        input.resourceData = hex"01";
+        _mustFail(abi.encodeCall(BossAccount.acceptOffer, (input)));
+    }
+
     function testSignedOfferTtlOwnsExpiryWhileAdapterQuoteIsStable() public {
         BossTypes.AcceptanceInput memory shortTtl = _input(7, type(uint256).max);
         (bytes32 shortId,) = account.acceptOffer(shortTtl);

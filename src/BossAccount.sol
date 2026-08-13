@@ -109,7 +109,6 @@ contract BossAccount is IFilecoinPayValidator {
     mapping(bytes32 subscriptionId => bool acknowledged) private _activationAcknowledged;
     mapping(bytes32 subscriptionId => bytes pricingData) private _pricingDataBySubscription;
     mapping(bytes32 subscriptionId => BossTypes.ResourceRef resource) private _resourceBySubscription;
-    mapping(bytes32 subscriptionId => bytes resourceData) private _resourceDataBySubscription;
     mapping(bytes32 subscriptionId => uint64 quoteTtlEpochs) private _capacityQuoteTtlEpochs;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _consumedClaims;
     mapping(bytes32 subscriptionId => mapping(uint256 nonce => bool consumed)) private _consumedUsageNonces;
@@ -156,6 +155,7 @@ contract BossAccount is IFilecoinPayValidator {
         if (
             input.resource.kind != BossTypes.ResourceKind.FWSS_PDP_DATASET || input.resource.chainId != block.chainid
                 || input.resource.anchor == address(0) || input.resource.context != bytes32(0)
+                || (offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY && input.resourceData.length != 0)
         ) revert InvalidResource();
         bytes32 canonicalResourceKey = BossHashes.hashResource(input.resource);
         BossTypes.ResourceStatus memory resource =
@@ -236,7 +236,6 @@ contract BossAccount is IFilecoinPayValidator {
         }
         if (offer.billingKind == BossTypes.BillingKind.STREAM_CAPACITY) {
             _resourceBySubscription[subscriptionId] = input.resource;
-            _resourceDataBySubscription[subscriptionId] = input.resourceData;
             _capacityQuoteTtlEpochs[subscriptionId] = offer.quoteTtlEpochs;
         }
 
@@ -337,9 +336,8 @@ contract BossAccount is IFilecoinPayValidator {
         _requirePinnedAdapterCode(subscription.pricingAdapter, BossTypes.AdapterKind.PRICING);
 
         BossTypes.ResourceRef memory resourceRef = _resourceBySubscription[subscriptionId];
-        BossTypes.ResourceStatus memory resource = IBossResourceAdapter(subscription.resourceAdapter).inspect(
-            resourceRef, payer, _resourceDataBySubscription[subscriptionId]
-        );
+        BossTypes.ResourceStatus memory resource =
+            IBossResourceAdapter(subscription.resourceAdapter).inspect(resourceRef, payer, bytes(""));
         if (resource.resourceKey != subscription.resourceKey) revert InvalidResource();
 
         BossTypes.RateQuote memory quote = IBossPricingAdapter(subscription.pricingAdapter).quoteRate(

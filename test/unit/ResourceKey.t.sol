@@ -15,8 +15,7 @@ contract ResourceKeyTest {
         });
 
         require(
-            BossHashes.hashResource(resource)
-                == 0x2491bd8df43b21fcd186b46f8a5819bf773a751fa244818318c81b362a003920,
+            BossHashes.hashResource(resource) == 0x2491bd8df43b21fcd186b46f8a5819bf773a751fa244818318c81b362a003920,
             "resource key"
         );
     }
@@ -26,11 +25,8 @@ contract ResourceKeyTest {
         bytes32 resourceKey = 0x2491bd8df43b21fcd186b46f8a5819bf773a751fa244818318c81b362a003920;
 
         require(
-            BossHashes.deriveSubscriptionId(
-                0x7777777777777777777777777777777777777777,
-                offerHash,
-                resourceKey
-            ) == 0xaccd1ea0e51657c2cdf3530b81983d215c7d39c28679fdaa63bb692298795b11,
+            BossHashes.deriveSubscriptionId(0x7777777777777777777777777777777777777777, offerHash, resourceKey)
+                == 0xaccd1ea0e51657c2cdf3530b81983d215c7d39c28679fdaa63bb692298795b11,
             "subscription id"
         );
     }

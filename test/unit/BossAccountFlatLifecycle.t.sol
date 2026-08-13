@@ -186,8 +186,7 @@ contract MockFilecoinPayV1 is IFilecoinPayV1 {
 }
 
 contract BossAccountFlatLifecycleTest {
-    VmFlatLifecycle internal constant vm =
-        VmFlatLifecycle(address(uint160(uint256(keccak256("hevm cheat code")))));
+    VmFlatLifecycle internal constant vm = VmFlatLifecycle(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 internal constant PROVIDER_KEY = 0xA11CE;
     address internal constant PROVIDER = address(0xB0B);
@@ -236,10 +235,7 @@ contract BossAccountFlatLifecycleTest {
 
     function testImmediateLifecyclePausesLocallyAndTerminatesWhileUnderfunded() public {
         BossTypes.AcceptanceInput memory input = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.PAY_THROUGH_FILECOIN_PAY_END,
-            1_000,
-            1
+            BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.PAY_THROUGH_FILECOIN_PAY_END, 1_000, 1
         );
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);
 
@@ -321,52 +317,32 @@ contract BossAccountFlatLifecycleTest {
     }
 
     function testReplayExpiredRevokedAndOverRateAcceptancesFailClosed() public {
-        BossTypes.AcceptanceInput memory input = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            3
-        );
+        BossTypes.AcceptanceInput memory input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 3);
         account.acceptOffer(input);
         _mustFailAccept(input);
 
-        BossTypes.AcceptanceInput memory expired = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            4
-        );
+        BossTypes.AcceptanceInput memory expired =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 4);
         expired.offer.validUntilEpoch = 99;
         expired.providerSignature = _signOffer(expired.offer);
         _mustFailAccept(expired);
 
-        BossTypes.AcceptanceInput memory revoked = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            5
-        );
+        BossTypes.AcceptanceInput memory revoked =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 5);
         vm.prank(PROVIDER);
         serviceRegistry.revokeOfferNonce(5);
         _mustFailAccept(revoked);
 
-        BossTypes.AcceptanceInput memory overRate = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            6
-        );
+        BossTypes.AcceptanceInput memory overRate =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 6);
         overRate.caps.maxRatePerEpoch = 9;
         _mustFailAccept(overRate);
     }
 
     function testLifetimeCapExhaustsWithoutBlockingSettlementCursor() public {
-        BossTypes.AcceptanceInput memory input = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            25,
-            7
-        );
+        BossTypes.AcceptanceInput memory input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 25, 7);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);
 
         vm.roll(110);
@@ -383,12 +359,8 @@ contract BossAccountFlatLifecycleTest {
     }
 
     function testUnauthorizedCallbacksCannotMutateOrCharge() public {
-        BossTypes.AcceptanceInput memory input = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            8
-        );
+        BossTypes.AcceptanceInput memory input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 8);
         (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);
 
         account.railTerminated(railId, address(this), 999);
@@ -403,12 +375,8 @@ contract BossAccountFlatLifecycleTest {
     }
 
     function testInvalidResourceAndFlatPricingFailuresAreClosed() public {
-        BossTypes.AcceptanceInput memory input = _input(
-            BossTypes.ActivationKind.IMMEDIATE,
-            BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST,
-            1_000,
-            9
-        );
+        BossTypes.AcceptanceInput memory input =
+            _input(BossTypes.ActivationKind.IMMEDIATE, BossTypes.TerminationBillingKind.ZERO_AFTER_REQUEST, 1_000, 9);
         resourceAdapter.setValid(false);
         _mustFailAccept(input);
 

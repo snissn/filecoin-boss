@@ -24,7 +24,7 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
     address public immutable pdpVerifier;
     address public immutable fwssService;
     address public immutable fwssStateView;
-    bytes32 public immutable resourceContext;
+    bytes32 public constant resourceContext = bytes32(0);
 
     constructor(address pdpVerifier_, address fwssService_, address fwssStateView_) {
         if (pdpVerifier_ == address(0) || fwssService_ == address(0) || fwssStateView_ == address(0)) {
@@ -40,7 +40,6 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
         pdpVerifier = pdpVerifier_;
         fwssService = fwssService_;
         fwssStateView = fwssStateView_;
-        resourceContext = keccak256(abi.encode("FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1", fwssService_, fwssStateView_));
     }
 
     function interfaceVersion() external pure returns (uint64) {
@@ -56,7 +55,7 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
         if (expectedPayer == address(0)) revert InvalidExpectedPayer();
         if (
             resource.kind != BossTypes.ResourceKind.FWSS_PDP_DATASET || resource.chainId != block.chainid
-                || resource.anchor != pdpVerifier || resource.context != resourceContext
+                || resource.anchor != pdpVerifier || resource.context != bytes32(0)
         ) revert InvalidResource();
 
         uint256 dataSetId = resource.resourceId;
@@ -89,6 +88,9 @@ contract FWSSPDPResourceAdapter is IBossResourceAdapter {
             abi.encode(
                 "FILECOIN_BOSS_FWSS_PDP_STATUS_V1",
                 resourceKey,
+                pdpVerifier,
+                fwssService,
+                fwssStateView,
                 info.payer,
                 storageProvider,
                 proposedProvider,

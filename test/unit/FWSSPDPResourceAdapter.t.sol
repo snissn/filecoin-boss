@@ -112,10 +112,12 @@ contract FWSSPDPResourceAdapterTest {
         require(status.statusHash != bytes32(0), "status hash");
     }
 
-    function testContextCommitsExactDeploymentTuple() public view {
-        bytes32 expected = keccak256(abi.encode("FILECOIN_BOSS_FWSS_PDP_CONTEXT_V1", FWSS_SERVICE, address(stateView)));
-        require(adapter.resourceContext() == expected, "deployment context");
-        require(_resource().context == expected, "resource context");
+    function testAdapterPinsExactDeploymentTupleAndUsesZeroContext() public view {
+        require(adapter.pdpVerifier() == address(pdp), "PDP verifier");
+        require(adapter.fwssService() == FWSS_SERVICE, "FWSS service");
+        require(adapter.fwssStateView() == address(stateView), "FWSS state view");
+        require(adapter.resourceContext() == bytes32(0), "public MVP context");
+        require(_resource().context == bytes32(0), "resource context");
     }
 
     function testWrongStructuralIdentityFailsClosed() public {
@@ -264,7 +266,7 @@ contract FWSSPDPResourceAdapterTest {
             chainId: uint64(block.chainid),
             anchor: address(pdp),
             resourceId: DATA_SET_ID,
-            context: adapter.resourceContext()
+            context: bytes32(0)
         });
     }
 

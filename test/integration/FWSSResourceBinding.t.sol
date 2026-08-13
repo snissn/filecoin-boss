@@ -139,7 +139,7 @@ contract FWSSResourceBindingTest {
                 chainId: uint64(block.chainid),
                 anchor: address(pdp),
                 resourceId: DATA_SET_ID,
-                context: resourceAdapter.resourceContext()
+                context: bytes32(0)
             }),
             resourceData: bytes(""),
             pricingData: pricingData,

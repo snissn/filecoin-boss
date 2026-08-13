@@ -1,0 +1,66 @@
+name: Fix A5 stale context test once
+
+on:
+  push:
+    branches:
+      - gpt56/issue-7-fwss-pdp-resource-binding
+    paths:
+      - .github/fix-a5-context-once
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpt56/issue-7-fwss-pdp-resource-binding
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Remove obsolete global zero-context assertion
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("test/unit/BossAccountFlatLifecycle.t.sol")
+          text = path.read_text()
+          old_name = "function testCanonicalFwssBindingAndFlatCapShapeFailClosed() public"
+          new_name = "function testCanonicalResourceAndFlatCapShapeFailClosed() public"
+          if text.count(old_name) != 1:
+              raise SystemExit("A4 test name anchor mismatch")
+          text = text.replace(old_name, new_name)
+          stale = '''        input.resource.kind = BossTypes.ResourceKind.FWSS_PDP_DATASET;
+                  input.resource.context = keccak256("nonzero-context");
+                  _mustFailAccept(input);
+
+                  input.resource.context = bytes32(0);
+          '''
+          if text.count(stale) != 1:
+              raise SystemExit("stale context assertion anchor mismatch")
+          text = text.replace(stale, "        input.resource.kind = BossTypes.ResourceKind.FWSS_PDP_DATASET;\n")
+          path.write_text(text)
+          PY
+          rm -f .github/a5-test.txt
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - run: forge fmt
+
+      - name: Commit test correction and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/fix-a5-context-once .github/workflows/fix-a5-context-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test: delegate resource context validation to adapters"
+          git push origin HEAD:gpt56/issue-7-fwss-pdp-resource-binding

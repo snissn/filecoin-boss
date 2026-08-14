@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = "b0ef71a8405bf7e76444d3918e2c3d66d1c6f086"
+          test "$(git rev-parse HEAD^)" = "c603fc0cedff60b36139842f2406fe666e729b88"
           test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
           cat \
             .github/a8-source-final-part-00.b64 \
@@ -52,6 +52,8 @@ jobs:
           git apply /tmp/a8-source-final.patch
           rm -f .github/a8-source-final*
           rm .github/workflows/a8-exact-source-export.yml
+          test -z "$(find .github -maxdepth 1 -type f -name 'a8-source-final*' -print -quit)"
+          test ! -e .github/workflows/a8-exact-source-export.yml
           git diff --check
 
       - name: Qualify exact source tree
@@ -72,8 +74,8 @@ jobs:
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
           test -z "$(git diff --cached --name-only | grep '^packages/contracts/' || true)"
-          test -z "$(git diff --cached --name-only | grep '^.github/a8-source-final' || true)"
-          test -z "$(git diff --cached --name-only | grep '^.github/workflows/a8-exact-source-export.yml$' || true)"
+          test -z "$(git diff --cached --name-only --diff-filter=ACMRTUXB | grep '^.github/a8-source-final' || true)"
+          test -z "$(git diff --cached --name-only --diff-filter=ACMRTUXB | grep '^.github/workflows/a8-exact-source-export.yml$' || true)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix: complete authenticated A8 integration surface"

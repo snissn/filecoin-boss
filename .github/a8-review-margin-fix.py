@@ -4,6 +4,16 @@ from pathlib import Path
 path = Path("src/BossAccount.sol")
 text = path.read_text()
 
+constant_anchor = """    bytes32 private constant ACTIVATION_ACK_TYPEHASH =
+        keccak256("ActivationAcknowledgement(bytes32 subscriptionId,bytes32 provisioningHash)");
+"""
+constant_replacement = constant_anchor + """    bytes32 private constant USAGE_CLAIM_CHARGED_EVENT_SIGNATURE =
+        keccak256("UsageClaimCharged(bytes32,bytes32,bytes32,uint256,uint256,uint256,bytes32)");
+"""
+if text.count(constant_anchor) != 1:
+    raise SystemExit("usage event signature anchor mismatch")
+text = text.replace(constant_anchor, constant_replacement)
+
 old_mapping = (
     "    mapping(bytes32 subscriptionId => mapping(uint256 window => uint256 gross)) private _usageGrossByWindow;\n"
 )
@@ -84,12 +94,21 @@ old_emit = """        emit UsageClaimCharged(
             subscriptionId, claim.claimId, claimHash, claim.units, rawGross, chargedGross, claim.evidenceHash
         );
 """
-new_emit = """        emit UsageClaimCharged(
-            subscriptionId, claimId, claimHash, units, rawGross, chargedGross, claim.evidenceHash
-        );
+new_emit = """        bytes32 evidenceHash = claim.evidenceHash;
+        bytes32 eventSignature = USAGE_CLAIM_CHARGED_EVENT_SIGNATURE;
+        assembly ("memory-safe") {
+            let pointer := mload(0x40)
+            mstore(pointer, claimHash)
+            mstore(add(pointer, 0x20), units)
+            mstore(add(pointer, 0x40), rawGross)
+            mstore(add(pointer, 0x60), chargedGross)
+            mstore(add(pointer, 0x80), evidenceHash)
+            log3(pointer, 0xa0, eventSignature, subscriptionId, claimId)
+            mstore(0x40, add(pointer, 0xa0))
+        }
 """
 if text.count(old_emit) != 1:
-    raise SystemExit("claim event local anchor mismatch")
+    raise SystemExit("claim event assembly anchor mismatch")
 text = text.replace(old_emit, new_emit)
 
 path.write_text(text)

@@ -35,13 +35,22 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD^)" = "4844a78b48ed62afa3a7c3456fe2d5ba2c89efdb"
+          test "$(git rev-parse HEAD^)" = "b0ef71a8405bf7e76444d3918e2c3d66d1c6f086"
           test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
-          cat .github/a8-source-final-part-*.b64 | base64 -d | gzip -dc > /tmp/a8-source-final.patch
+          cat \
+            .github/a8-source-final-part-00.b64 \
+            .github/a8-source-final-part-01.b64 \
+            .github/a8-source-final-part-02a.b64 \
+            .github/a8-source-final-part-02b.b64 \
+            .github/a8-source-final-part-02c.b64 \
+            .github/a8-source-final-part-03.b64 \
+            .github/a8-source-final-part-04a.b64 \
+            .github/a8-source-final-part-04b.b64 \
+            | base64 -d | gzip -dc > /tmp/a8-source-final.patch
           echo "30fb8a26612815587cf7e3c795005f8e30f79c500f151a99e9fe37fdc7316018  /tmp/a8-source-final.patch" | sha256sum -c -
           git apply --check /tmp/a8-source-final.patch
           git apply /tmp/a8-source-final.patch
-          rm -f .github/a8-source-final.patch.b64 .github/a8-source-final-part-*.b64
+          rm -f .github/a8-source-final*
           rm .github/workflows/a8-exact-source-export.yml
           git diff --check
 

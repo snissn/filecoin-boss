@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - src/**
+      - lib/**
+      - foundry.toml
+      - remappings.txt
+      - .gitmodules
       - scripts/generate-contract-artifacts.sh
       - packages/contracts/**
       - deployments/schema.json
@@ -13,6 +17,10 @@ on:
     branches: [main]
     paths:
       - src/**
+      - lib/**
+      - foundry.toml
+      - remappings.txt
+      - .gitmodules
       - scripts/generate-contract-artifacts.sh
       - packages/contracts/**
       - deployments/schema.json
@@ -21,34 +29,57 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: contract-artifacts-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Verify Filecoin Pay source lock
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          expected=04ded6af6c15c4b5d98545f393dc656004d4aede
+          observed=$(git -C lib/filecoin-pay rev-parse HEAD)
+          if [[ "$observed" != "$expected" ]]; then
+            echo "filecoin-pay lock mismatch: expected $expected, observed $observed" >&2
+            exit 1
+          fi
 
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
         with:
           version: v1.3.5
           cache: true
 
       - name: Regenerate contract artifacts
-        run: scripts/generate-contract-artifacts.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=$(jq -er '.sourceCommit' packages/contracts/artifacts.json)
+          SOURCE_COMMIT="$source_commit" scripts/generate-contract-artifacts.sh
 
       - name: Reject artifact drift
-        run: git diff --exit-code -- packages/contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add --intent-to-add --all -- packages/contracts
+          git diff --exit-code -- packages/contracts
 
       - name: Validate manifests
         shell: bash
         run: |
           set -euo pipefail
-          jq -e '.schemaVersion == 1 and (.contracts | length == 10)' packages/contracts/artifacts.json >/dev/null
-          jq -e '.type == "object" and (.required | index("chainId")) and (.required | index("contracts"))' deployments/schema.json >/dev/null
+          jq -e '.schemaVersion == 1 and (.sourceCommit == .protocolCommit)' packages/contracts/artifacts.json >/dev/null
+          manifest_abis=$(jq -r '.contracts[].abi' packages/contracts/artifacts.json | sort)
+          disk_abis=$(find packages/contracts/abi -maxdepth 1 -type f -name '*.json' -printf 'abi/%f\n' | sort)
+          diff -u <(printf '%s\n' "$manifest_abis") <(printf '%s\n' "$disk_abis")
+          while IFS= read -r abi; do test -f "packages/contracts/$abi"; done <<<"$manifest_abis"
+          jq -e '.type == "object" and (.required | index("chainId")) and (.required | index("contracts"))' \
+            deployments/schema.json >/dev/null

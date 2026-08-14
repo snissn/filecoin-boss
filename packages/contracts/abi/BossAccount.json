@@ -33,6 +33,45 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "bundles",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "manifestHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "encodedAcceptances",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "acceptBundle",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "bundleId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "subscriptionIds",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "components": [
@@ -317,7 +356,7 @@
         "type": "uint64"
       }
     ],
-    "stateMutability": "pure",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -855,6 +894,30 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "subscriptionIndex",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "subscriptionId",
         "type": "bytes32"
@@ -910,6 +973,11 @@
       },
       {
         "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "window",
         "type": "uint256"
       }
@@ -919,6 +987,11 @@
       {
         "internalType": "bool",
         "name": "claimConsumed",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "nonceConsumed",
         "type": "bool"
       },
       {
@@ -1316,6 +1389,12 @@
       {
         "indexed": false,
         "internalType": "uint256",
+        "name": "units",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
         "name": "rawGross",
         "type": "uint256"
       },
@@ -1324,6 +1403,12 @@
         "internalType": "uint256",
         "name": "chargedGross",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "evidenceHash",
+        "type": "bytes32"
       }
     ],
     "name": "UsageClaimCharged",
@@ -1391,6 +1476,11 @@
   {
     "inputs": [],
     "name": "InvalidAdapterRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBundleBatch",
     "type": "error"
   },
   {

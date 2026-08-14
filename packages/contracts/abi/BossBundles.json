@@ -1,5 +1,16 @@
 [
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "factory_",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
     "inputs": [],
     "name": "MAX_COMPONENTS",
     "outputs": [
@@ -97,6 +108,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "factory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -280,6 +304,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidFactory",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidManifest",
     "type": "error"
   },
@@ -297,6 +326,11 @@
   {
     "inputs": [],
     "name": "InvalidVersion",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrantBundleCreation",
     "type": "error"
   },
   {

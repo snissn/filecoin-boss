@@ -163,6 +163,11 @@
             "type": "bool"
           },
           {
+            "internalType": "bool",
+            "name": "nonceConsumed",
+            "type": "bool"
+          },
+          {
             "internalType": "uint256",
             "name": "window",
             "type": "uint256"
@@ -643,6 +648,11 @@
           },
           {
             "internalType": "bool",
+            "name": "railRead",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
             "name": "activationAcknowledged",
             "type": "bool"
           },
@@ -665,6 +675,348 @@
         "internalType": "struct BossStateView.SubscriptionSnapshot",
         "name": "snapshot",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "accountAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "offset",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "limit",
+        "type": "uint256"
+      }
+    ],
+    "name": "subscriptionPage",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "exists",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "subscriptionId",
+            "type": "bytes32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "offerHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "resourceKey",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "resourceDataHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "pricingDataHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "accessGrantHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "address",
+                "name": "provider",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "beneficiary",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "reporter",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "resourceAdapter",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "pricingAdapter",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "railId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum BossTypes.BillingKind",
+                "name": "billingKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.AssuranceKind",
+                "name": "assuranceKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.DependencyKind",
+                "name": "dependencyKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.ActivationKind",
+                "name": "activationKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.TerminationBillingKind",
+                "name": "terminationBillingKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bool",
+                "name": "pauseAllowed",
+                "type": "bool"
+              },
+              {
+                "components": [
+                  {
+                    "internalType": "uint256",
+                    "name": "maxRatePerEpoch",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxFixedLockup",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxSingleCharge",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "maxChargePerWindow",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint256",
+                    "name": "lifetimeCapGross",
+                    "type": "uint256"
+                  },
+                  {
+                    "internalType": "uint64",
+                    "name": "chargeWindowEpochs",
+                    "type": "uint64"
+                  },
+                  {
+                    "internalType": "uint64",
+                    "name": "notAfterEpoch",
+                    "type": "uint64"
+                  },
+                  {
+                    "internalType": "uint64",
+                    "name": "maxLockupPeriod",
+                    "type": "uint64"
+                  }
+                ],
+                "internalType": "struct BossTypes.CapPolicy",
+                "name": "caps",
+                "type": "tuple"
+              },
+              {
+                "internalType": "uint256",
+                "name": "acceptedRatePerEpoch",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "settledGross",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "oneTimeChargedGross",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "currentFixedBudget",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint64",
+                "name": "acceptedEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "activatedEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "quoteValidThroughEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "quoteTtlEpochs",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "pausedEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "terminationRequestedEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "payEndEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "lastUsageToEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "enum BossTypes.SubscriptionState",
+                "name": "state",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct BossTypes.Subscription",
+            "name": "subscription",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "from",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "operator",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "validator",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "paymentRate",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "lockupPeriod",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "lockupFixed",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "settledUpTo",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "endEpoch",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "commissionRateBps",
+                "type": "uint256"
+              },
+              {
+                "internalType": "address",
+                "name": "serviceFeeRecipient",
+                "type": "address"
+              }
+            ],
+            "internalType": "struct IFilecoinPayV1.RailView",
+            "name": "rail",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "railRead",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "activationAcknowledged",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "railAssociationValid",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "grossSpent",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "remainingLifetimeGross",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BossStateView.SubscriptionSnapshot[]",
+        "name": "snapshots",
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",
@@ -972,6 +1324,11 @@
             "internalType": "struct IFilecoinPayV1.RailView",
             "name": "rail",
             "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "railRead",
+            "type": "bool"
           },
           {
             "internalType": "bool",

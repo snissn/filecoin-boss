@@ -1,9 +1,21 @@
 {
+  "accountCreationCodeHash": "0xa3a6cc3d1905ec4fb92e0cc263b61b3f9d8f2df518f5695fbaffd68622a04555",
+  "compiler": {
+    "bytecodeHash": "none",
+    "cborMetadata": false,
+    "evmVersion": "prague",
+    "optimizer": {
+      "enabled": true,
+      "runs": 1
+    },
+    "solcVersion": "0.8.30",
+    "viaIR": true
+  },
   "contracts": [
     {
       "abi": "abi/BossAccount.json",
       "creationCode": "bytecode/BossAccount.creation.hex",
-      "creationCodeHash": "0x9d296df976a8684f4e9e0a016f5536f26081dca770499876bbc624f23b210a93",
+      "creationCodeHash": "0xa3a6cc3d1905ec4fb92e0cc263b61b3f9d8f2df518f5695fbaffd68622a04555",
       "name": "BossAccount"
     },
     {
@@ -43,5 +55,7 @@
       "name": "FWSSPDPResourceAdapter"
     }
   ],
-  "schemaVersion": 1
+  "protocolCommit": "a0cd7fb6cf6a35203dd353519202c8588eb2d35b",
+  "schemaVersion": 1,
+  "sourceCommit": "a0cd7fb6cf6a35203dd353519202c8588eb2d35b"
 }

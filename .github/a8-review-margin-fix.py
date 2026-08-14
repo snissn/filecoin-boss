@@ -27,4 +27,69 @@ if text.count(old_getter) != 1:
     raise SystemExit("usage window getter anchor mismatch")
 text = text.replace(old_getter, "")
 
+old_claim_start = """        _requireNotExpired(subscription);
+
+        if (
+            claim.claimId == bytes32(0) || claim.toEpoch <= claim.fromEpoch || claim.toEpoch > block.number
+"""
+new_claim_start = """        _requireNotExpired(subscription);
+
+        bytes32 claimId = claim.claimId;
+        uint256 claimNonce = claim.nonce;
+        uint256 units = claim.units;
+        if (
+            claimId == bytes32(0) || claim.toEpoch <= claim.fromEpoch || claim.toEpoch > block.number
+"""
+if text.count(old_claim_start) != 1:
+    raise SystemExit("claim local anchor mismatch")
+text = text.replace(old_claim_start, new_claim_start)
+
+old_replay = """        if (_consumedClaims[subscriptionId][claim.claimId]) {
+            revert UsageClaimAlreadyConsumed(claim.claimId);
+        }
+        if (_consumedUsageNonces[subscriptionId][claim.nonce]) {
+            revert UsageNonceAlreadyConsumed(claim.nonce);
+        }
+"""
+new_replay = """        if (_consumedClaims[subscriptionId][claimId]) revert UsageClaimAlreadyConsumed(claimId);
+        if (_consumedUsageNonces[subscriptionId][claimNonce]) revert UsageNonceAlreadyConsumed(claimNonce);
+"""
+if text.count(old_replay) != 1:
+    raise SystemExit("claim replay anchor mismatch")
+text = text.replace(old_replay, new_replay)
+
+old_quote = """        uint256 rawGross = IBossPricingAdapter(subscription.pricingAdapter).quoteUsage(
+            claim.units, _pricingDataBySubscription[subscriptionId]
+        );
+"""
+new_quote = """        uint256 rawGross = IBossPricingAdapter(subscription.pricingAdapter).quoteUsage(
+            units, _pricingDataBySubscription[subscriptionId]
+        );
+"""
+if text.count(old_quote) != 1:
+    raise SystemExit("claim units quote anchor mismatch")
+text = text.replace(old_quote, new_quote)
+
+old_consumption = """        _consumedClaims[subscriptionId][claim.claimId] = true;
+        _consumedUsageNonces[subscriptionId][claim.nonce] = true;
+"""
+new_consumption = """        _consumedClaims[subscriptionId][claimId] = true;
+        _consumedUsageNonces[subscriptionId][claimNonce] = true;
+"""
+if text.count(old_consumption) != 1:
+    raise SystemExit("claim consumption anchor mismatch")
+text = text.replace(old_consumption, new_consumption)
+
+old_emit = """        emit UsageClaimCharged(
+            subscriptionId, claim.claimId, claimHash, claim.units, rawGross, chargedGross, claim.evidenceHash
+        );
+"""
+new_emit = """        emit UsageClaimCharged(
+            subscriptionId, claimId, claimHash, units, rawGross, chargedGross, claim.evidenceHash
+        );
+"""
+if text.count(old_emit) != 1:
+    raise SystemExit("claim event local anchor mismatch")
+text = text.replace(old_emit, new_emit)
+
 path.write_text(text)

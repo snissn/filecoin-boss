@@ -1699,7 +1699,7 @@ The PRs below are intentionally small enough to review independently.
 | A8 | Bundle/event/view surface | A4-A7 | Batch acceptance and complete indexable events |
 | A9 | Calibration deployment package | A8 | Deployment verification and address manifest |
 | A10 | Boss subgraph | A8, A9 | Matchstick suite and Calibration indexing |
-| A11 | Filone example storefront | A6, A9 | Quote/accept/terminate pilot flow |
+| A11 | FilOne example storefront | A6, A9 | Quote/accept/terminate pilot flow |
 
 ### Track B — SDK
 
@@ -1790,13 +1790,13 @@ The MVP implementation is complete when all of the following are true:
 
 ---
 
-## 18. Product decisions that block only the Filone offer
+## 18. Product decisions that block only the FilOne offer
 
 The platform can be implemented while these remain open, but the pilot offer cannot be finalized without them:
 
 - exact inclusive 4.99 total versus 2.49 independent component;
-- Filone's operational obligation;
-- Filone beneficiary and any storefront commission;
+- FilOne's operational obligation;
+- FilOne beneficiary and any storefront commission;
 - required data-access scope;
 - lockup and termination-billing policy;
 - quote TTL and reconciler owner;

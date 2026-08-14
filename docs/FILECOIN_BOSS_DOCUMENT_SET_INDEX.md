@@ -88,7 +88,7 @@ It covers:
 - billing models;
 - failure behavior;
 - repository impact;
-- recommended Filone pilot;
+- recommended FilOne pilot;
 - MVP and product decisions.
 
 ### `FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff`
@@ -107,7 +107,7 @@ Machine-readable file list, byte sizes, SHA-256 hashes, source locks, and docume
 
 1. Human summary.
 2. Specification §§0–5 and §§15–18.
-3. Filone decision list in specification §25.
+3. FilOne decision list in specification §25.
 4. Implementation draft §18.
 
 ### Protocol and smart-contract review
@@ -197,7 +197,7 @@ C0  Filecoin Pin read-only commands
 C1  Filecoin Pin accept/funding
 D0  Explorer Boss client/types
 D1  Explorer service/resource pages
-E0  Filone offer/storefront
+E0  FilOne offer/storefront
 ```
 
 The first scientifically meaningful implementation milestone is A4+A5: a user attaches and independently terminates a flat service on a real FWSS-backed dataset without modifying the storage contract.
@@ -221,7 +221,7 @@ The first scientifically meaningful implementation milestone is A4+A5: a user at
 
 The package is detailed enough to open the repository scaffold and first interface PRs. It is not an audit, deployment approval, or claim that the sketched interfaces compile unchanged.
 
-The most important unresolved product decision is whether the Filone pilot is:
+The most important unresolved product decision is whether the FilOne pilot is:
 
 - an independently priced 2.49 USDFC/TiB/month managed-service component; or
 - an exact 4.99 USDFC/TiB/month inclusive product whose add-on rate is dynamically derived from the current FWSS quote.

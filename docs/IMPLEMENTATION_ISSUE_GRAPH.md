@@ -33,7 +33,7 @@ Downstream issue branches use `gpt56/issue-<number>-<slug>` and target the corre
 | A9 | [#11](https://github.com/snissn/filecoin-boss/issues/11) | devnet/Calibration deployment | A8 | reproducible verified manifests |
 | A10 | [#12](https://github.com/snissn/filecoin-boss/issues/12) | Boss subgraph | A8, A9 | deterministic event replay and rail association index |
 | A11 | [#13](https://github.com/snissn/filecoin-boss/issues/13) | security/invariant gate | A8 | authority, cap, settlement, and termination invariants |
-| A12 | [#14](https://github.com/snissn/filecoin-boss/issues/14) | Filone/final evidence | A6, A9, A10, A11, downstream release gates | exact devnet/Calibration product lifecycle |
+| A12 | [#14](https://github.com/snissn/filecoin-boss/issues/14) | FilOne/final evidence | A6, A9, A10, A11, downstream release gates | exact devnet/Calibration product lifecycle |
 
 ```text
 A0 -> A1 -> {A2, A3} -> A4 -> {A5 -> A6, A7} -> A8 -> {A9 -> A10, A11} -> A12

@@ -50,11 +50,11 @@ The central design decisions are:
 
 7. **No distributed-system fiction.** PDP, FWSS, Filecoin Pay, indexers, SDKs, storage providers, and add-on providers do not update atomically. Boss uses signed desired-state manifests, idempotency keys, event-sourced state, and a reconciler rather than pretending the system has a single transaction boundary.
 
-This design solves the immediate Filone requirement without waiting for FWSSv2:
+This design solves the immediate FilOne requirement without waiting for FWSSv2:
 
 ```text
 Existing FWSS storage rail            -> storage provider
-Boss capacity-priced service rail     -> Filone
+Boss capacity-priced service rail     -> FilOne
 Boss flat service rail                -> another provider
 Boss capped metered rail              -> CDN / retrieval provider
 ```
@@ -233,7 +233,7 @@ Synapse and Filecoin Pin currently understand the storage product:
 - upload, pull, and commit pieces;
 - inspect storage and payment state.
 
-Filecoin Pay Explorer indexes generic accounts, approvals, rails, rates, one-time payments, and settlements. It does not know that a rail represents “Filone managed storage,” “indexing,” “repair,” or “CDN for these three datasets.”
+Filecoin Pay Explorer indexes generic accounts, approvals, rails, rates, one-time payments, and settlements. It does not know that a rail represents “FilOne managed storage,” “indexing,” “repair,” or “CDN for these three datasets.”
 
 Boss therefore requires both:
 
@@ -485,7 +485,7 @@ struct ResourceSet {
 }
 ```
 
-Membership changes create a new version. Existing subscriptions stay pinned unless the user explicitly accepts a rebind policy. Resource sets are not required for the first Filone pilot.
+Membership changes create a new version. Existing subscriptions stay pinned unless the user explicitly accepts a rebind policy. Resource sets are not required for the first FilOne pilot.
 
 ### 6.3 Service offer
 
@@ -722,7 +722,7 @@ The implementation belongs in a new `FilOzone/filecoin-boss` repository. It owns
 - deployment manifests and generated ABIs;
 - resource and pricing adapters;
 - a Boss-specific subgraph;
-- examples and the Filone reference storefront;
+- examples and the FilOne reference storefront;
 - specification, ADRs, threat model, and audit artifacts.
 
 Boss business logic must not be embedded into `FilecoinPayV1.sol`, PDP, or FWSS for the MVP.
@@ -1771,7 +1771,7 @@ Recommended:
 
 ```text
 FWSS storage component       -> storage provider
-Filone management component  -> Filone
+FilOne management component  -> FilOne
 Indexing component           -> indexing provider
 CDN component                -> CDN provider
 Storefront fee, if any       -> storefront
@@ -1780,7 +1780,7 @@ Storefront fee, if any       -> storefront
 The UI may show:
 
 ```text
-Filone Storage — total estimated recurring price: 4.99 USDFC/TiB/month
+FilOne Storage — total estimated recurring price: 4.99 USDFC/TiB/month
 ```
 
 but must also expose component recipients and caps.
@@ -1800,41 +1800,41 @@ Reseller mode is not recommended for Boss v1.
 
 ---
 
-## 18. Filone pilot
+## 18. FilOne pilot
 
 The pilot should not wait for a complete ecosystem migration.
 
 ### 18.1 Semantic decision
 
-Filone must choose one of two truthful product descriptions.
+FilOne must choose one of two truthful product descriptions.
 
 #### A. Branded total-price product
 
-“Filone Storage costs 4.99 USDFC/TiB/month.”
+“FilOne Storage costs 4.99 USDFC/TiB/month.”
 
-Boss composes the actual FWSS recurring quote and a Filone service component so the displayed total meets the declared price policy.
+Boss composes the actual FWSS recurring quote and a FilOne service component so the displayed total meets the declared price policy.
 
 The quote must account for the current FWSS flat per-dataset proving fee and any other recurring components. A hard-coded `2.49` surcharge does not produce an exact `4.99` total in every dataset-size case.
 
-#### B. Base storage plus a distinct Filone service
+#### B. Base storage plus a distinct FilOne service
 
 ```text
 FWSS storage and proving: current on-chain quote
-Filone managed service:   2.49 USDFC/TiB/month
+FilOne managed service:   2.49 USDFC/TiB/month
 ```
 
-This is simpler technically and more transparent if Filone is actually providing management, support, policy, repair coordination, access, or another distinct obligation.
+This is simpler technically and more transparent if FilOne is actually providing management, support, policy, repair coordination, access, or another distinct obligation.
 
 ### 18.2 Recommended first implementation
 
-Use mode B unless Filone requires an exact inclusive total.
+Use mode B unless FilOne requires an exact inclusive total.
 
 Create:
 
-- `FiloneManagedStorage` service definition;
+- `FilOneManagedStorage` service definition;
 - `PDPCapacityAdapter` offer at the chosen per-TiB rate;
 - one Boss subscription per dataset;
-- no data-access capability unless Filone needs it;
+- no data-access capability unless FilOne needs it;
 - `CANCELLABLE_ONLY` assurance initially;
 - explicit max rate and optional one-year cap;
 - one-day or zero termination lockup;
@@ -1843,19 +1843,19 @@ Create:
 ### 18.3 Customer flow
 
 ```text
-1. Filone publishes signed offer.
-2. Synapse/Filecoin Pin quotes base FWSS + Filone.
+1. FilOne publishes signed offer.
+2. Synapse/Filecoin Pin quotes base FWSS + FilOne.
 3. User sees total, recipients, caps, and trust class.
 4. User funds Filecoin Pay and approves their BossAccount.
 5. PDP/FWSS dataset is created or selected.
-6. BossAccount attaches Filone service and creates its rail.
+6. BossAccount attaches FilOne service and creates its rail.
 7. Capacity sync tracks PDP leaf count.
-8. User can terminate Filone without deleting or migrating storage.
+8. User can terminate FilOne without deleting or migrating storage.
 ```
 
-### 18.4 What Filone does not need
+### 18.4 What FilOne does not need
 
-Filone does not need:
+FilOne does not need:
 
 - an FWSS fork;
 - a global FWSS price change;
@@ -2544,7 +2544,7 @@ docs/adr/0007-no-upgrade-account-versions.md
 Acceptance:
 
 - authority nouns are unambiguous;
-- Filone product choices are isolated from protocol choices;
+- FilOne product choices are isolated from protocol choices;
 - exact source revisions are recorded;
 - no production code precedes acceptance of cap and termination invariants.
 
@@ -2748,9 +2748,9 @@ claims
 
 Mutation UI waits for stable SDK lifecycle APIs.
 
-### Phase 9 — Filone pilot
+### Phase 9 — FilOne pilot
 
-#### PR E0: Filone offer and storefront example
+#### PR E0: FilOne offer and storefront example
 
 Required decisions:
 
@@ -2766,7 +2766,7 @@ Recommended first offer:
 
 ```text
 2.49 USDFC/TiB/30 days
-separate Filone beneficiary rail
+separate FilOne beneficiary rail
 CANCELLABLE_ONLY
 no data access
 one-day capacity quote TTL
@@ -2816,7 +2816,7 @@ The smallest coherent release contains:
 11. Synapse SDK service manager;
 12. Filecoin Pin commands;
 13. Boss subgraph;
-14. Filone example storefront.
+14. FilOne example storefront.
 
 It explicitly excludes disputes from the release gate, provided the UI labels metered services as trusted and the cap is hard.
 
@@ -2826,17 +2826,17 @@ It explicitly excludes disputes from the release gate, provided the UI labels me
 
 Only a small number of choices remain product-specific.
 
-### 25.1 Filone semantics
+### 25.1 FilOne semantics
 
 Is `4.99`:
 
 - the exact inclusive total recurring price;
 - `4.99/TiB/month` plus the FWSS per-dataset proving fee;
-- base FWSS plus a separately stated Filone fee?
+- base FWSS plus a separately stated FilOne fee?
 
-### 25.2 Filone obligation
+### 25.2 FilOne obligation
 
-What does Filone deliver beyond access to the same base storage mechanism?
+What does FilOne deliver beyond access to the same base storage mechanism?
 
 Possible truthful definitions:
 
@@ -2988,7 +2988,7 @@ Production Solidity should begin only after:
 - authority and recipient invariants are accepted;
 - quote-TTL semantics are accepted;
 - Filecoin Pay V1 termination and pause behavior are accepted;
-- the Filone offer is clearly separated from the generic protocol;
+- the FilOne offer is clearly separated from the generic protocol;
 - the test plan is reviewed by an independent Filecoin Pay accounting owner.
 
 The technical implementation draft is deliberately close to a code skeleton, but it is not represented as audited or compiling production code.

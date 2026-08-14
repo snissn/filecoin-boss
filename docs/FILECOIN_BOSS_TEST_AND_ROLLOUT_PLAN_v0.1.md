@@ -789,7 +789,7 @@ Store normalized golden outputs for:
 - flat quote;
 - capacity quote;
 - trusted metering quote;
-- exact Filone example;
+- exact FilOne example;
 - underfunded warning;
 - mixed-recipient bundle;
 - terminated subscription.
@@ -968,9 +968,9 @@ Required exercises:
 
 Minimum observation period: enough to cross several capacity quote TTLs and Filecoin Pay settlement periods; use concrete epochs rather than relying only on wall-clock scripts.
 
-### 13.3 Stage C2 — Filone pilot
+### 13.3 Stage C2 — FilOne pilot
 
-- publish one immutable Filone offer;
+- publish one immutable FilOne offer;
 - use explicit gross price and beneficiary;
 - cap dataset count and payer exposure;
 - manual user onboarding;
@@ -985,7 +985,7 @@ Exit criteria:
 - all quote expiries reconciled or correctly zero-paying;
 - no stuck termination;
 - accounting reconciles across Boss, Filecoin Pay, subgraphs, and provider records;
-- Filone obligation and support path are documented.
+- FilOne obligation and support path are documented.
 
 ### 13.4 Stage C3 — public Calibration
 

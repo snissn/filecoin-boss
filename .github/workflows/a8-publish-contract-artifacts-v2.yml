@@ -1,0 +1,66 @@
+name: Publish A8 artifacts from final source
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/workflows/a8-publish-contract-artifacts-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: a8-publish-contract-artifacts-v2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Generate package from final source authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=25438fe41398245a14caeb34ba656bbe7178ac40
+          test "$(git merge-base "$source_commit" HEAD)" = "$source_commit"
+          git worktree add --detach /tmp/a8-source "$source_commit"
+          git -C /tmp/a8-source submodule sync --recursive
+          git -C /tmp/a8-source submodule update --init --force --recursive
+          test "$(git -C /tmp/a8-source rev-parse HEAD)" = "$source_commit"
+          (
+            cd /tmp/a8-source
+            SOURCE_COMMIT="$source_commit" scripts/generate-contract-artifacts.sh
+          )
+          rsync -a --delete /tmp/a8-source/packages/contracts/ packages/contracts/
+          test "$(jq -er '.sourceCommit' packages/contracts/artifacts.json)" = "$source_commit"
+          test "$(jq -er '.protocolCommit' packages/contracts/artifacts.json)" = "$source_commit"
+          git diff --check
+
+      - name: Publish artifact-only commit
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add packages/contracts
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          test -z "$(git diff --cached --name-only | grep -v '^packages/contracts/' || true)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: publish final A8 contract artifacts"
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

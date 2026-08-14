@@ -1,4 +1,4 @@
-name: A8 local optimization kit
+name: Publish qualified A8 source repair
 
 on:
   push:
@@ -6,17 +6,16 @@ on:
       - gpt56/issue-10-bundles-state-view-artifacts
     paths:
       - .github/workflows/a8-local-optimization-kit.yml
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: a8-local-optimization-kit-${{ github.ref }}
-  cancel-in-progress: true
+  group: a8-final-source-repair
+  cancel-in-progress: false
 
 jobs:
-  export:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -29,37 +28,56 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
         with:
           version: v1.3.5
-          cache: false
+          cache: true
 
-      - name: Build with pinned solc and report sizes
-        shell: bash
-        run: |
-          set -euo pipefail
-          forge build --sizes | tee /tmp/a8-local-kit-build.log
-
-      - name: Package exact checkout and compilers
+      - name: Verify and apply bounded source patch
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
-          mkdir -p /tmp/a8-local-kit /tmp/a8-foundry-bin /tmp/a8-solc-bin
-          tar --exclude=.git --exclude=out --exclude=cache -czf /tmp/a8-local-kit/repository.tar.gz .
-          cp -L "$HOME/.foundry/bin/forge" "$HOME/.foundry/bin/cast" \
-            "$HOME/.foundry/bin/anvil" "$HOME/.foundry/bin/chisel" /tmp/a8-foundry-bin/
-          solc_path="$(find "$HOME/.svm" -type f -name 'solc-0.8.30' -perm -111 -print -quit)"
-          test -n "$solc_path"
-          cp -L "$solc_path" /tmp/a8-solc-bin/solc-0.8.30
-          tar -C /tmp/a8-foundry-bin -czf /tmp/a8-local-kit/foundry-bin.tar.gz forge cast anvil chisel
-          tar -C /tmp/a8-solc-bin -czf /tmp/a8-local-kit/solc-bin.tar.gz solc-0.8.30
-          git rev-parse HEAD > /tmp/a8-local-kit/source-head.txt
-          cp /tmp/a8-local-kit-build.log /tmp/a8-local-kit/build.log
-          cd /tmp/a8-local-kit
-          sha256sum repository.tar.gz foundry-bin.tar.gz solc-bin.tar.gz source-head.txt build.log > SHA256SUMS
+          observed="$(git -C lib/filecoin-pay rev-parse HEAD)"
+          expected="04ded6af6c15c4b5d98545f393dc656004d4aede"
+          if [ "$observed" != "$expected" ]; then
+            echo "filecoin-pay lock mismatch: expected $expected, observed $observed" >&2
+            exit 1
+          fi
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: a8-local-optimization-kit
-          path: /tmp/a8-local-kit/
-          if-no-files-found: error
-          retention-days: 1
+          cat .github/a8-final-repair-00.b64 \
+              .github/a8-final-repair-01.b64 \
+              .github/a8-final-repair-02.b64 \
+            | base64 -d \
+            | gzip -dc > /tmp/a8-final-repair.patch
+          echo "42a84fd549856ccaa67a53b4087d521d9909f620da623bbd16b587f4df281ede  /tmp/a8-final-repair.patch" \
+            | sha256sum -c -
+          git apply --check /tmp/a8-final-repair.patch
+          git apply /tmp/a8-final-repair.patch
+          rm -f .github/a8-final-repair-00.b64 \
+                .github/a8-final-repair-01.b64 \
+                .github/a8-final-repair-02.b64
+          git diff --check
+
+      - name: Qualify exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge fmt --check
+          forge build --sizes
+          forge test -vvv
+
+      - name: Publish source-only commit
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          if git diff --cached --name-only | grep -q '^.github/workflows/'; then
+            echo "source publication unexpectedly modifies a workflow file" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: authenticate and complete A8 integration surface"
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

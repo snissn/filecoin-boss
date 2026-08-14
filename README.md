@@ -41,7 +41,7 @@ The first implementation is specified around three billing examples:
 2. an additional `1 USDFC/TiB` per 30-day month, synchronized from PDP capacity;
 3. a capped trusted-metering model for CDN-like bandwidth charges using fixed Filecoin Pay lockup and explicit per-claim, per-window, and lifetime limits.
 
-The first commercial pilot is a Filone-style managed-storage offer composed over an existing FWSS/PDP data set without forking FWSS.
+The first commercial pilot is a FilOne-style managed-storage offer composed over an existing FWSS/PDP data set without forking FWSS.
 
 ## Development policy
 

@@ -37,11 +37,11 @@ The present FWSS product combines a specific storage service, a specific pricing
 
 That is appropriate for a standardized storage product, but it becomes restrictive when another organization wants to offer a differentiated product without forking FWSS.
 
-The immediate example is Filone:
+The immediate example is FilOne:
 
 - current FWSS storage is quoted using the shared FWSS price schedule;
-- Filone wants to sell a higher-priced managed product using the same PDP and Filecoin Pay infrastructure;
-- Filone should not need an FWSS fork merely to choose its commercial price or add a distinct service obligation.
+- FilOne wants to sell a higher-priced managed product using the same PDP and Filecoin Pay infrastructure;
+- FilOne should not need an FWSS fork merely to choose its commercial price or add a distinct service obligation.
 
 The same problem appears for indexing, CDN, repair, monitoring, and future services. Embedding each one into FWSS would make the storage contract the owner of every product and every pricing rule. Boss instead makes services composable around a neutral storage resource.
 
@@ -52,9 +52,9 @@ The same problem appears for indexing, CDN, repair, monitoring, and future servi
 A storefront can show one coherent product:
 
 ```text
-Filone Managed Storage
+FilOne Managed Storage
 Storage and PDP verification             2.50 USDFC/TiB/month
-Filone managed service                   2.49 USDFC/TiB/month
+FilOne managed service                   2.49 USDFC/TiB/month
 Estimated total                          4.99 USDFC/TiB/month
 ```
 
@@ -220,7 +220,7 @@ This repository owns:
 - pricing adapters;
 - deployment manifests and generated ABIs;
 - a Boss-specific subgraph;
-- the Filone reference storefront;
+- the FilOne reference storefront;
 - protocol specification, ADRs, threat model, and audit artifacts.
 
 ### `FilOzone/synapse-sdk`
@@ -270,21 +270,21 @@ Curio and Filecoin Beam also do not block the flat-rate and capacity-priced MVP.
 
 ---
 
-## Filone pilot recommendation
+## FilOne pilot recommendation
 
-The first pilot should use a distinct Filone service component unless the product team specifically requires an exact inclusive total.
+The first pilot should use a distinct FilOne service component unless the product team specifically requires an exact inclusive total.
 
 Recommended pilot:
 
 ```text
 Resource:               one FWSS-backed PDP dataset
-Service:                Filone Managed Storage
+Service:                FilOne Managed Storage
 Billing:                capacity-priced streaming add-on
 Price:                  2.49 USDFC/TiB/30 days
 Assurance:              CANCELLABLE_ONLY initially
 Lockup:                 explicit, preferably 0 or 1 day
 Data access:             none unless an operational feature actually needs it
-Payment recipient:      Filone beneficiary
+Payment recipient:      FilOne beneficiary
 Base storage:            unchanged FWSS rail
 ```
 
@@ -306,7 +306,7 @@ The first releasable version contains:
 - an operator-based user termination path;
 - a Boss subgraph;
 - Synapse SDK and Filecoin Pin support;
-- a Filone example storefront;
+- a FilOne example storefront;
 - Calibration deployment and end-to-end tests.
 
 The following are intentionally later:
@@ -325,10 +325,10 @@ The following are intentionally later:
 
 Engineering can proceed after these product choices are recorded:
 
-1. Is Filone selling an exact 4.99 total product or a separately priced 2.49 managed-service component?
-2. What concrete obligation does Filone perform beyond base storage?
-3. Does the first Filone service require any data access?
-4. What termination tail does Filone require: zero, one day, or another period?
+1. Is FilOne selling an exact 4.99 total product or a separately priced 2.49 managed-service component?
+2. What concrete obligation does FilOne perform beyond base storage?
+3. Does the first FilOne service require any data access?
+4. What termination tail does FilOne require: zero, one day, or another period?
 5. Is the first metered reporter fully trusted up to the cap, or must claims wait through a dispute window?
 6. Should the first public release expose only protocol-approved adapters, or also clearly labeled custom adapters?
 

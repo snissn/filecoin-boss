@@ -1,0 +1,72 @@
+name: Publish final A8 source
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/workflows/a8-final-source-publish.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: a8-final-source-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Verify exact bootstrap parent and Filecoin Pay lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "8df8d1d728b6e4979459b0a2e8481c1c3140e0e2"
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Verify and apply exact source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/a8-final-source-{00..05}.b64 | base64 --decode > /tmp/a8-source.patch.gz
+          echo "1426b13e14ae17e4148ea260d3badd8feeafcdd4a5d1cf997a7e9b4231fc90c1  /tmp/a8-source.patch.gz" | sha256sum -c -
+          gzip -dc /tmp/a8-source.patch.gz > /tmp/a8-source.patch
+          echo "d9577131c1cccfd02983aa33873d4dc109d6d649573ea450e86f8046c2ef53dc  /tmp/a8-source.patch" | sha256sum -c -
+          git apply --check /tmp/a8-source.patch
+          git apply /tmp/a8-source.patch
+          rm -f .github/a8-final-source-{00..05}.b64 .github/workflows/a8-final-source-publish.yml
+
+      - name: Qualify final source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge fmt --check
+          forge build --sizes | tee /tmp/a8-build-sizes.log
+          grep -F '| BossAccount' /tmp/a8-build-sizes.log
+          forge test -vvv
+          git diff --check
+          test -z "$(git status --short -- packages/contracts/abi packages/contracts/bytecode packages/contracts/artifacts.json)"
+
+      - name: Publish clean source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          test -z "$(git diff --cached --name-only | grep -E '^packages/contracts/(abi/|bytecode/|artifacts\.json$)' || true)"
+          git commit -m "feat: complete A8 atomic integration surface"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

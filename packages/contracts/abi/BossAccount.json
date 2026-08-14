@@ -317,7 +317,7 @@
         "type": "uint64"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -899,6 +899,40 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "window",
+        "type": "uint256"
+      }
+    ],
+    "name": "usageClaimState",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "claimConsumed",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "windowGross",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "railId",
         "type": "uint256"
@@ -1275,9 +1309,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "units",
-        "type": "uint256"
+        "internalType": "bytes32",
+        "name": "claimHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -1290,12 +1324,6 @@
         "internalType": "uint256",
         "name": "chargedGross",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "evidenceHash",
-        "type": "bytes32"
       }
     ],
     "name": "UsageClaimCharged",

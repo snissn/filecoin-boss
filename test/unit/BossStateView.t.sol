@@ -186,11 +186,14 @@ contract BossStateViewTest {
         bytes32[] memory ids = new bytes32[](2);
         ids[0] = SUBSCRIPTION;
         ids[1] = MISSING;
+        uint256 gasBefore = gasleft();
         BossStateView.SubscriptionSnapshot[] memory snapshots = stateView.subscriptions(address(account), ids);
+        uint256 batchGas = gasBefore - gasleft();
         require(snapshots.length == 2, "batch length");
         require(snapshots[0].exists, "existing missing");
         require(!snapshots[1].exists, "missing existing");
         require(snapshots[0].remainingLifetimeGross == type(uint256).max, "unlimited cap");
+        require(batchGas < 750_000, "state batch gas");
 
         bytes32[] memory oversized = new bytes32[](stateView.MAX_BATCH() + 1);
         _mustFail(address(stateView), abi.encodeCall(BossStateView.subscriptions, (address(account), oversized)));

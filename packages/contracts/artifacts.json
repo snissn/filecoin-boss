@@ -3,7 +3,7 @@
     {
       "abi": "abi/BossAccount.json",
       "creationCode": "bytecode/BossAccount.creation.hex",
-      "creationCodeHash": "0x89a21173a9657fd39a8d07690191e031b305a9f1f965ad995bc935f93db15dd0",
+      "creationCodeHash": "0x9d296df976a8684f4e9e0a016f5536f26081dca770499876bbc624f23b210a93",
       "name": "BossAccount"
     },
     {

@@ -8,6 +8,7 @@ forge build >/dev/null
 
 ABI_DIR=packages/contracts/abi
 BYTECODE_DIR=packages/contracts/bytecode
+rm -rf "$ABI_DIR" "$BYTECODE_DIR"
 mkdir -p "$ABI_DIR" "$BYTECODE_DIR"
 
 contracts=(

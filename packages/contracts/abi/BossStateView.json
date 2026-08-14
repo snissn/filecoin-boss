@@ -83,6 +83,129 @@
       {
         "components": [
           {
+            "internalType": "bytes32",
+            "name": "claimId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "fromEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "toEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "units",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "evidenceHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "evidenceURI",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BossTypes.UsageClaim",
+        "name": "usageClaim",
+        "type": "tuple"
+      }
+    ],
+    "name": "claim",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "subscriptionExists",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "windowValid",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "subscriptionId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "claimHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "digest",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "reporter",
+            "type": "address"
+          },
+          {
+            "internalType": "bool",
+            "name": "claimConsumed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "window",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "windowGross",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "remainingWindowGross",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "remainingLifetimeGross",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BossStateView.ClaimSnapshot",
+        "name": "snapshot",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "accountAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
             "internalType": "enum BossTypes.ResourceKind",
             "name": "kind",
             "type": "uint8"

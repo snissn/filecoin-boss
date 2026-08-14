@@ -24,6 +24,11 @@ interface IBossAccountRead {
 
     function subscriptionForRail(uint256 railId) external view returns (bytes32);
     function activationAcknowledged(bytes32 subscriptionId) external view returns (bool);
+
+    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 window)
+        external
+        view
+        returns (bool claimConsumed, uint256 windowGross);
 }
 
 /// @notice Stateless bounded read model for Boss accounts, subscriptions, resources, quotes, and Pay rails.
@@ -62,6 +67,20 @@ contract BossStateView {
     struct QuoteSnapshot {
         BossTypes.ResourceStatus resource;
         BossTypes.RateQuote quote;
+    }
+
+    struct ClaimSnapshot {
+        bool subscriptionExists;
+        bool windowValid;
+        bytes32 subscriptionId;
+        bytes32 claimHash;
+        bytes32 digest;
+        address reporter;
+        bool claimConsumed;
+        uint256 window;
+        uint256 windowGross;
+        uint256 remainingWindowGross;
+        uint256 remainingLifetimeGross;
     }
 
     function account(address accountAddress) external view returns (AccountSnapshot memory snapshot) {
@@ -121,6 +140,42 @@ contract BossStateView {
             IBossResourceAdapter(subscription_.resourceAdapter).inspect(resource, account_.payer(), resourceData);
         if (snapshot.resource.resourceKey != subscription_.resourceKey) revert ResourceMismatch();
         snapshot.quote = IBossPricingAdapter(subscription_.pricingAdapter).quoteRate(snapshot.resource, pricingData);
+    }
+
+    function claim(address accountAddress, bytes32 subscriptionId, BossTypes.UsageClaim calldata usageClaim)
+        external
+        view
+        returns (ClaimSnapshot memory snapshot)
+    {
+        IBossAccountRead account_ = _account(accountAddress);
+        BossTypes.Subscription memory subscription_ = account_.getSubscription(subscriptionId);
+        snapshot.subscriptionId = subscriptionId;
+        if (subscription_.state == BossTypes.SubscriptionState.NONE) return snapshot;
+
+        snapshot.subscriptionExists = true;
+        snapshot.claimHash = BossHashes.hashUsageClaim(subscriptionId, usageClaim);
+        snapshot.digest =
+            BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, accountAddress), snapshot.claimHash);
+        snapshot.reporter = subscription_.reporter;
+        uint256 grossSpent = subscription_.settledGross + subscription_.oneTimeChargedGross;
+        snapshot.remainingLifetimeGross = BossTypes.remainingCap(subscription_.caps.lifetimeCapGross, grossSpent);
+
+        uint256 windowSize = subscription_.caps.chargeWindowEpochs;
+        if (
+            windowSize == 0 || usageClaim.toEpoch <= usageClaim.fromEpoch
+                || usageClaim.fromEpoch < subscription_.acceptedEpoch
+        ) return snapshot;
+
+        uint256 startWindow = (uint256(usageClaim.fromEpoch) - subscription_.acceptedEpoch) / windowSize;
+        uint256 endWindow = (uint256(usageClaim.toEpoch) - 1 - subscription_.acceptedEpoch) / windowSize;
+        if (startWindow != endWindow) return snapshot;
+
+        snapshot.windowValid = true;
+        snapshot.window = startWindow;
+        (snapshot.claimConsumed, snapshot.windowGross) =
+            account_.usageClaimState(subscriptionId, usageClaim.claimId, startWindow);
+        snapshot.remainingWindowGross =
+            BossTypes.remainingCap(subscription_.caps.maxChargePerWindow, snapshot.windowGross);
     }
 
     function _subscription(IBossAccountRead account_, address accountAddress, bytes32 subscriptionId)

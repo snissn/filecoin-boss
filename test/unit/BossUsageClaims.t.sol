@@ -339,6 +339,9 @@ contract BossUsageClaimsTest {
 
         require(account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim)) == 0, "zero charge");
         require(pay.oneTimeGross(railId) == 0, "no Pay payment");
+        (bool claimConsumed, uint256 windowGross) = account.usageClaimState(subscriptionId, claim.claimId, 0);
+        require(claimConsumed, "claim consumption not readable");
+        require(windowGross == 0, "zero claim changed window gross");
         _mustFailClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
     }
 

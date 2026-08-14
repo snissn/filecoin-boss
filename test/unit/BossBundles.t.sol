@@ -58,12 +58,15 @@ contract BossBundlesTest {
         require(bundles.componentAt(bundleId, 0) == SUBSCRIPTION_A, "component zero");
         require(bundles.componentAt(bundleId, 1) == SUBSCRIPTION_B, "component one");
 
+        uint256 gasBefore = gasleft();
         bytes32[] memory first = bundles.components(bundleId, 0, 1);
+        uint256 pageGas = gasBefore - gasleft();
         bytes32[] memory second = bundles.components(bundleId, 1, 10);
         bytes32[] memory pastEnd = bundles.components(bundleId, 2, 1);
         require(first.length == 1 && first[0] == SUBSCRIPTION_A, "first page");
         require(second.length == 1 && second[0] == SUBSCRIPTION_B, "second page");
         require(pastEnd.length == 0, "past-end page");
+        require(pageGas < 150_000, "bundle page gas");
 
         _mustFail(
             address(bundles), abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, subscriptionIds))
@@ -103,6 +106,28 @@ contract BossBundlesTest {
         _mustFail(
             address(bundles), abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, oversized))
         );
+    }
+
+    function testBundleCannotMutateMembershipSubscriptionOrRailAuthority() public {
+        BossBundles bundles = new BossBundles();
+        MockBundleAccount account = new MockBundleAccount(address(this));
+        account.setSubscription(SUBSCRIPTION_A, RESOURCE, 77);
+        bytes32[] memory one = new bytes32[](1);
+        one[0] = SUBSCRIPTION_A;
+        bytes32 bundleId = bundles.createBundle(address(account), MANIFEST, 1, one);
+
+        (bool removeSuccess,) =
+            address(bundles).call(abi.encodeWithSignature("removeComponent(bytes32,uint256)", bundleId, 0));
+        (bool executeSuccess,) =
+            address(bundles).call(abi.encodeWithSignature("execute(bytes32,bytes)", bundleId, bytes("")));
+        (bool terminateSuccess,) = address(bundles).call(abi.encodeWithSignature("terminate(bytes32)", SUBSCRIPTION_A));
+        require(!removeSuccess && !executeSuccess && !terminateSuccess, "bundle gained authority");
+
+        BossTypes.Subscription memory subscription = account.getSubscription(SUBSCRIPTION_A);
+        require(subscription.resourceKey == RESOURCE, "bundle changed resource");
+        require(subscription.railId == 77, "bundle changed rail");
+        require(subscription.state == BossTypes.SubscriptionState.ACTIVE, "bundle changed lifecycle");
+        require(bundles.componentAt(bundleId, 0) == SUBSCRIPTION_A, "bundle membership mutated");
     }
 
     function testRejectsUnknownSubscriptionAndInvalidManifestOrVersion() public {

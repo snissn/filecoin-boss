@@ -87,20 +87,17 @@ contract BossAccount is IFilecoinPayValidator {
     event UsageClaimCharged(
         bytes32 indexed subscriptionId,
         bytes32 indexed claimId,
-        uint256 units,
+        bytes32 claimHash,
         uint256 rawGross,
-        uint256 chargedGross,
-        bytes32 evidenceHash
+        uint256 chargedGross
     );
     event FixedBudgetToppedUp(bytes32 indexed subscriptionId, uint256 oldBudget, uint256 newBudget);
 
     address public immutable owner;
-    address public immutable payer;
     address public immutable filecoinPay;
     address public immutable serviceRegistry;
     address public immutable adapterRegistry;
     address public immutable factory;
-    uint64 public immutable accountVersion;
 
     mapping(bytes32 subscriptionId => BossTypes.Subscription subscription) private _subscriptions;
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionForRail;
@@ -131,12 +128,18 @@ contract BossAccount is IFilecoinPayValidator {
         if (accountVersion_ != 1) revert InvalidAccountVersion();
 
         owner = owner_;
-        payer = owner_;
         filecoinPay = filecoinPay_;
         serviceRegistry = serviceRegistry_;
         adapterRegistry = adapterRegistry_;
-        accountVersion = accountVersion_;
         factory = msg.sender;
+    }
+
+    function payer() external view returns (address) {
+        return owner;
+    }
+
+    function accountVersion() external pure returns (uint64) {
+        return 1;
     }
 
     function acceptOffer(BossTypes.AcceptanceInput calldata input)
@@ -157,9 +160,9 @@ contract BossAccount is IFilecoinPayValidator {
         ) revert InvalidResource();
         bytes32 canonicalResourceKey = BossHashes.hashResource(input.resource);
         BossTypes.ResourceStatus memory resource =
-            IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, payer, input.resourceData);
+            IBossResourceAdapter(offer.resourceAdapter).inspect(input.resource, owner, input.resourceData);
         if (
-            !resource.exists || !resource.attachable || !resource.billable || resource.payer != payer
+            !resource.exists || !resource.attachable || !resource.billable || resource.payer != owner
                 || resource.resourceKey != canonicalResourceKey
         ) revert InvalidResource();
 
@@ -179,7 +182,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         IFilecoinPayV1 pay = IFilecoinPayV1(filecoinPay);
         railId = pay.createRail(
-            offer.token, payer, offer.beneficiary, address(this), offer.commissionBps, offer.commissionRecipient
+            offer.token, owner, offer.beneficiary, address(this), offer.commissionBps, offer.commissionRecipient
         );
         pay.modifyRailLockup(railId, offer.requiredLockupPeriod, input.initialFixedBudget);
 
@@ -321,7 +324,7 @@ contract BossAccount is IFilecoinPayValidator {
 
         BossTypes.ResourceRef memory resourceRef = _resourceBySubscription[subscriptionId];
         BossTypes.ResourceStatus memory resource =
-            IBossResourceAdapter(subscription.resourceAdapter).inspect(resourceRef, payer, bytes(""));
+            IBossResourceAdapter(subscription.resourceAdapter).inspect(resourceRef, owner, bytes(""));
         if (resource.resourceKey != subscription.resourceKey) revert InvalidResource();
 
         BossTypes.RateQuote memory quote = IBossPricingAdapter(subscription.pricingAdapter).quoteRate(
@@ -478,7 +481,7 @@ contract BossAccount is IFilecoinPayValidator {
         if (chargedGross != 0) {
             IFilecoinPayV1(filecoinPay).modifyRailPayment(subscription.railId, 0, chargedGross);
         }
-        emit UsageClaimCharged(subscriptionId, claim.claimId, claim.units, rawGross, chargedGross, claim.evidenceHash);
+        emit UsageClaimCharged(subscriptionId, claim.claimId, claimHash, rawGross, chargedGross);
     }
 
     function topUpFixedBudget(bytes32 subscriptionId, uint256 newFixedBudget) external onlyOwner {
@@ -522,6 +525,14 @@ contract BossAccount is IFilecoinPayValidator {
 
     function activationAcknowledged(bytes32 subscriptionId) external view returns (bool) {
         return _activationAcknowledged[subscriptionId];
+    }
+
+    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 window)
+        external
+        view
+        returns (bool claimConsumed, uint256 windowGross)
+    {
+        return (_consumedClaims[subscriptionId][claimId], _usageGrossByWindow[subscriptionId][window]);
     }
 
     function validatePayment(uint256 railId, uint256 proposedAmount, uint256 fromEpoch, uint256 toEpoch, uint256 rate)
@@ -694,7 +705,7 @@ contract BossAccount is IFilecoinPayValidator {
         ) revert InvalidCapacityQuote();
 
         if (available) {
-            if (resource.payer != payer || resource.statusHash == bytes32(0)) revert InvalidCapacityQuote();
+            if (resource.payer != owner || resource.statusHash == bytes32(0)) revert InvalidCapacityQuote();
         } else if (quote.ratePerEpoch != 0) {
             revert InvalidCapacityQuote();
         }

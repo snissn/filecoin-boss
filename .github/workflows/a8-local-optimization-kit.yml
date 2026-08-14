@@ -1,0 +1,46 @@
+name: A8 local optimization kit
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/workflows/a8-local-optimization-kit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.5
+          cache: false
+
+      - name: Package exact checkout and compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          mkdir -p /tmp/a8-local-kit
+          tar --exclude=.git --exclude=out --exclude=cache -czf /tmp/a8-local-kit/repository.tar.gz .
+          tar -C "$HOME/.foundry/bin" -czf /tmp/a8-local-kit/foundry-bin.tar.gz forge cast anvil chisel
+          git rev-parse HEAD > /tmp/a8-local-kit/source-head.txt
+          cd /tmp/a8-local-kit
+          sha256sum repository.tar.gz foundry-bin.tar.gz source-head.txt > SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: a8-local-optimization-kit
+          path: /tmp/a8-local-kit/
+          if-no-files-found: error
+          retention-days: 1

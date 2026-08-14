@@ -1,5 +1,5 @@
 {
-  "accountCreationCodeHash": "0xa3a6cc3d1905ec4fb92e0cc263b61b3f9d8f2df518f5695fbaffd68622a04555",
+  "accountCreationCodeHash": "0x6ad8c166cdf9aa41ded2dd7be3fb38ab96b87265d1c4c7a5d0bf05307e7490bb",
   "compiler": {
     "bytecodeHash": "none",
     "cborMetadata": false,
@@ -15,7 +15,7 @@
     {
       "abi": "abi/BossAccount.json",
       "creationCode": "bytecode/BossAccount.creation.hex",
-      "creationCodeHash": "0xa3a6cc3d1905ec4fb92e0cc263b61b3f9d8f2df518f5695fbaffd68622a04555",
+      "creationCodeHash": "0x6ad8c166cdf9aa41ded2dd7be3fb38ab96b87265d1c4c7a5d0bf05307e7490bb",
       "name": "BossAccount"
     },
     {
@@ -55,7 +55,7 @@
       "name": "FWSSPDPResourceAdapter"
     }
   ],
-  "protocolCommit": "25438fe41398245a14caeb34ba656bbe7178ac40",
+  "protocolCommit": "c55169a9fae79de8ef303d8fd0d9f9dcab292636",
   "schemaVersion": 1,
-  "sourceCommit": "25438fe41398245a14caeb34ba656bbe7178ac40"
+  "sourceCommit": "c55169a9fae79de8ef303d8fd0d9f9dcab292636"
 }

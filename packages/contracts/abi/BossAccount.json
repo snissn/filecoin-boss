@@ -25,6 +25,11 @@
         "internalType": "uint64",
         "name": "accountVersion_",
         "type": "uint64"
+      },
+      {
+        "internalType": "address",
+        "name": "bundles_",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -32,11 +37,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "bundles",
-        "type": "address"
-      },
       {
         "internalType": "bytes32",
         "name": "manifestHash",
@@ -59,11 +59,6 @@
         "internalType": "bytes32",
         "name": "bundleId",
         "type": "bytes32"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "subscriptionIds",
-        "type": "bytes32[]"
       }
     ],
     "stateMutability": "nonpayable",
@@ -1232,13 +1227,103 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "initialRate",
+        "name": "initialFixedBudget",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "provider",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "reporter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "resourceAdapter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "pricingAdapter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "resourceDataHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "pricingDataHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "accessGrantHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "policyWord",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "initialFixedBudget",
+        "name": "maxRatePerEpoch",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxFixedLockup",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxSingleCharge",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxChargePerWindow",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lifetimeCapGross",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "capEpochs",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "acceptedRatePerEpoch",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "acceptanceEpochs",
         "type": "uint256"
       }
     ],
@@ -1481,6 +1566,11 @@
   {
     "inputs": [],
     "name": "InvalidBundleBatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBundleRegistry",
     "type": "error"
   },
   {

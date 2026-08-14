@@ -6,30 +6,36 @@ on:
       - gpt56/issue-10-bundles-state-view-artifacts
     paths:
       - .github/workflows/a8-local-optimization-kit.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: a8-local-optimization-kit-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   export:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           submodules: recursive
+          persist-credentials: false
 
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
         with:
           version: v1.3.5
           cache: false
 
-      - name: Install exact Solidity compiler
+      - name: Build with pinned solc and report sizes
         shell: bash
         run: |
           set -euo pipefail
-          forge build --sizes >/tmp/a8-local-kit-build.log
+          forge build --sizes | tee /tmp/a8-local-kit-build.log
 
       - name: Package exact checkout and compilers
         shell: bash
@@ -47,10 +53,11 @@ jobs:
           tar -C /tmp/a8-foundry-bin -czf /tmp/a8-local-kit/foundry-bin.tar.gz forge cast anvil chisel
           tar -C /tmp/a8-solc-bin -czf /tmp/a8-local-kit/solc-bin.tar.gz solc-0.8.30
           git rev-parse HEAD > /tmp/a8-local-kit/source-head.txt
+          cp /tmp/a8-local-kit-build.log /tmp/a8-local-kit/build.log
           cd /tmp/a8-local-kit
-          sha256sum repository.tar.gz foundry-bin.tar.gz solc-bin.tar.gz source-head.txt > SHA256SUMS
+          sha256sum repository.tar.gz foundry-bin.tar.gz solc-bin.tar.gz source-head.txt build.log > SHA256SUMS
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: a8-local-optimization-kit
           path: /tmp/a8-local-kit/

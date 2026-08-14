@@ -25,20 +25,30 @@ jobs:
           version: v1.3.5
           cache: false
 
-      - name: Package exact checkout and compiler
+      - name: Install exact Solidity compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge build --sizes >/tmp/a8-local-kit-build.log
+
+      - name: Package exact checkout and compilers
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
-          mkdir -p /tmp/a8-local-kit /tmp/a8-foundry-bin
+          mkdir -p /tmp/a8-local-kit /tmp/a8-foundry-bin /tmp/a8-solc-bin
           tar --exclude=.git --exclude=out --exclude=cache -czf /tmp/a8-local-kit/repository.tar.gz .
           cp -L "$HOME/.foundry/bin/forge" "$HOME/.foundry/bin/cast" \
             "$HOME/.foundry/bin/anvil" "$HOME/.foundry/bin/chisel" /tmp/a8-foundry-bin/
+          solc_path="$(find "$HOME/.svm" -type f -name 'solc-0.8.30' -perm -111 -print -quit)"
+          test -n "$solc_path"
+          cp -L "$solc_path" /tmp/a8-solc-bin/solc-0.8.30
           tar -C /tmp/a8-foundry-bin -czf /tmp/a8-local-kit/foundry-bin.tar.gz forge cast anvil chisel
+          tar -C /tmp/a8-solc-bin -czf /tmp/a8-local-kit/solc-bin.tar.gz solc-0.8.30
           git rev-parse HEAD > /tmp/a8-local-kit/source-head.txt
           cd /tmp/a8-local-kit
-          sha256sum repository.tar.gz foundry-bin.tar.gz source-head.txt > SHA256SUMS
+          sha256sum repository.tar.gz foundry-bin.tar.gz solc-bin.tar.gz source-head.txt > SHA256SUMS
 
       - uses: actions/upload-artifact@v4
         with:

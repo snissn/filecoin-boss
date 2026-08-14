@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch_parent=20c7fb284eba4c697707d142d814cea75c045f33
+          branch_parent=8dca4a485ff506d6ffcbb51f7dcc0fac13eeda09
           main_parent=43ce5e875289a4f644f2d3d74ddd4d72057ca91a
           test "$(git rev-parse HEAD^)" = "$branch_parent"
           git fetch origin main
@@ -75,6 +75,8 @@ jobs:
           unexpected=$(git diff --cached --name-only | grep -vE '^(README\.md|docs/FILECOIN_BOSS_DOCUMENT_SET_INDEX\.md|docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0\.1\.md|docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0\.1\.md|docs/FILECOIN_BOSS_SPEC_v0\.2\.md|docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0\.1\.md|docs/IMPLEMENTATION_ISSUE_GRAPH\.md|\.github/workflows/a8-merge-current-main\.yml)$' || true)
           test -z "$unexpected"
           test ! -e .github/workflows/a8-merge-current-main.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           tree=$(git write-tree)
           commit=$(printf '%s\n' 'Merge current main into A8 integration candidate' | git commit-tree "$tree" -p "$GITHUB_SHA" -p "$main_parent")
           git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"

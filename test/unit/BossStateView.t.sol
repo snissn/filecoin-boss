@@ -44,6 +44,8 @@ contract MockStateAccount {
     uint64 public accountVersion = 1;
 
     mapping(bytes32 subscriptionId => BossTypes.Subscription subscription) private _subscriptions;
+    uint256 private _subscriptionCount;
+    mapping(uint256 index => bytes32 subscriptionId) private _subscriptionIdAt;
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionsByRail;
     mapping(bytes32 subscriptionId => bool acknowledged) private _acknowledged;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _claimConsumed;
@@ -63,6 +65,9 @@ contract MockStateAccount {
     function setSubscription(bytes32 subscriptionId, BossTypes.Subscription memory subscription, bool acknowledged)
         external
     {
+        if (_subscriptions[subscriptionId].state == BossTypes.SubscriptionState.NONE) {
+            _subscriptionIdAt[_subscriptionCount++] = subscriptionId;
+        }
         _subscriptions[subscriptionId] = subscription;
         _subscriptionsByRail[subscription.railId] = subscriptionId;
         _acknowledged[subscriptionId] = acknowledged;
@@ -92,6 +97,10 @@ contract MockStateAccount {
         returns (BossTypes.Subscription memory subscription)
     {
         return _subscriptions[subscriptionId];
+    }
+
+    function subscriptionIndex(uint256 index) external view returns (bytes32 subscriptionId, uint256 count) {
+        return (_subscriptionIdAt[index], _subscriptionCount);
     }
 
     function subscriptionForRail(uint256 railId) external view returns (bytes32) {
@@ -196,7 +205,7 @@ contract BossStateViewTest is RevertAssertions {
         require(snapshot.activationAcknowledged, "acknowledged");
         require(snapshot.grossSpent == 30, "gross spent");
         require(snapshot.remainingLifetimeGross == 70, "lifetime remaining");
-        require(snapshot.railAssociationValid, "rail association");
+        require(snapshot.railRead && snapshot.railAssociationValid, "rail association");
         require(snapshot.rail.paymentRate == 7, "rail rate");
 
         require(!stateView.subscription(address(account), MISSING).exists, "missing exists");
@@ -250,14 +259,14 @@ contract BossStateViewTest is RevertAssertions {
         BossStateView.SubscriptionSnapshot memory snapshot = stateView.subscription(address(account), SUBSCRIPTION);
         require(snapshot.exists, "ended missing");
         require(snapshot.subscription.state == BossTypes.SubscriptionState.ENDED, "ended state");
-        require(!snapshot.railAssociationValid, "finalized rail associated");
+        require(!snapshot.railRead && !snapshot.railAssociationValid, "finalized rail associated");
         require(snapshot.rail.from == address(0), "finalized rail fetched");
 
         bytes32[] memory ids = new bytes32[](2);
         ids[0] = SUBSCRIPTION;
         ids[1] = MISSING;
         BossStateView.SubscriptionSnapshot[] memory snapshots = stateView.subscriptions(address(account), ids);
-        require(snapshots[0].exists && !snapshots[0].railAssociationValid, "ended batch");
+        require(snapshots[0].exists && !snapshots[0].railRead && !snapshots[0].railAssociationValid, "ended batch");
         require(!snapshots[1].exists, "missing batch");
     }
 
@@ -289,6 +298,40 @@ contract BossStateViewTest is RevertAssertions {
         _mustRevertWith(
             address(stateView),
             abi.encodeCall(BossStateView.subscriptions, (address(account), new bytes32[](0))),
+            BossStateView.InvalidBatch.selector
+        );
+    }
+
+    function testSubscriptionPageDiscoversAcceptedIdsWithinBoundedLimits() public {
+        (MockStatePay pay, MockStateAccount account, BossStateView stateView) = _fixture();
+        bytes32 secondId = keccak256("second");
+        bytes32 thirdId = keccak256("third");
+        bytes32[3] memory ids = [SUBSCRIPTION, secondId, thirdId];
+        for (uint256 i; i < ids.length; ++i) {
+            BossTypes.Subscription memory subscription = _activeSubscription(i + 1);
+            account.setSubscription(ids[i], subscription, false);
+            pay.setRail(subscription.railId, _validRail(address(account), address(this), subscription));
+        }
+
+        BossStateView.SubscriptionSnapshot[] memory first = stateView.subscriptionPage(address(account), 0, 2);
+        BossStateView.SubscriptionSnapshot[] memory finalPage = stateView.subscriptionPage(address(account), 2, 2);
+        BossStateView.SubscriptionSnapshot[] memory pastEnd = stateView.subscriptionPage(address(account), 3, 1);
+        require(
+            first.length == 2 && first[0].subscriptionId == SUBSCRIPTION && first[1].subscriptionId == secondId,
+            "first page"
+        );
+        require(finalPage.length == 1 && finalPage[0].subscriptionId == thirdId, "final page");
+        require(pastEnd.length == 0, "past-end page");
+        require(first[0].railRead && first[0].railAssociationValid, "page rail association");
+
+        _mustRevertWith(
+            address(stateView),
+            abi.encodeCall(BossStateView.subscriptionPage, (address(account), 0, 0)),
+            BossStateView.InvalidBatch.selector
+        );
+        _mustRevertWith(
+            address(stateView),
+            abi.encodeCall(BossStateView.subscriptionPage, (address(account), 0, stateView.MAX_BATCH() + 1)),
             BossStateView.InvalidBatch.selector
         );
     }

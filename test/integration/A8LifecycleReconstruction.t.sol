@@ -41,6 +41,8 @@ contract A8LifecycleAccount is IBossAccountEvents {
     uint64 public accountVersion = 1;
 
     mapping(bytes32 subscriptionId => BossTypes.Subscription subscription) private _subscriptions;
+    uint256 private _subscriptionCount;
+    mapping(uint256 index => bytes32 subscriptionId) private _subscriptionIdAt;
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionsByRail;
     mapping(bytes32 subscriptionId => bool acknowledged) private _acknowledged;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _claimConsumed;
@@ -56,6 +58,9 @@ contract A8LifecycleAccount is IBossAccountEvents {
     function setSubscription(bytes32 subscriptionId, BossTypes.Subscription memory subscription, bool acknowledged)
         external
     {
+        if (_subscriptions[subscriptionId].state == BossTypes.SubscriptionState.NONE) {
+            _subscriptionIdAt[_subscriptionCount++] = subscriptionId;
+        }
         _subscriptions[subscriptionId] = subscription;
         _subscriptionsByRail[subscription.railId] = subscriptionId;
         _acknowledged[subscriptionId] = acknowledged;
@@ -81,6 +86,10 @@ contract A8LifecycleAccount is IBossAccountEvents {
         returns (BossTypes.Subscription memory subscription)
     {
         return _subscriptions[subscriptionId];
+    }
+
+    function subscriptionIndex(uint256 index) external view returns (bytes32 subscriptionId, uint256 count) {
+        return (_subscriptionIdAt[index], _subscriptionCount);
     }
 
     function subscriptionForRail(uint256 railId) external view returns (bytes32) {
@@ -367,21 +376,19 @@ contract A8LifecycleReconstructionTest {
         require(capacityActivated && capacityRateObserved, "capacity lifecycle");
         require(meteredActivated && meteredClaimObserved, "metered lifecycle");
 
-        bytes32[] memory subscriptionIds = new bytes32[](3);
-        subscriptionIds[0] = FLAT_ID;
-        subscriptionIds[1] = CAPACITY_ID;
-        subscriptionIds[2] = METERED_ID;
-        BossStateView.SubscriptionSnapshot[] memory snapshots =
-            stateView.subscriptions(address(account), subscriptionIds);
+        BossStateView.SubscriptionSnapshot[] memory snapshots = stateView.subscriptionPage(address(account), 0, 3);
 
-        require(snapshots[0].exists && !snapshots[0].railAssociationValid, "flat finalized view");
+        require(snapshots.length == 3, "subscription page length");
+        require(
+            snapshots[0].exists && !snapshots[0].railRead && !snapshots[0].railAssociationValid, "flat finalized view"
+        );
         require(snapshots[0].rail.from == address(0), "flat finalized rail fetched");
         require(snapshots[0].subscription.state == BossTypes.SubscriptionState.ENDED, "flat ended view");
         require(snapshots[0].subscription.payEndEpoch == 130, "flat termination view");
-        require(snapshots[1].exists && snapshots[1].railAssociationValid, "capacity view");
+        require(snapshots[1].exists && snapshots[1].railRead && snapshots[1].railAssociationValid, "capacity view");
         require(snapshots[1].subscription.acceptedRatePerEpoch == 20, "capacity rate view");
         require(snapshots[1].subscription.quoteValidThroughEpoch == 150, "capacity quote view");
-        require(snapshots[2].exists && snapshots[2].railAssociationValid, "metered view");
+        require(snapshots[2].exists && snapshots[2].railRead && snapshots[2].railAssociationValid, "metered view");
         require(snapshots[2].grossSpent == 5 ether, "metered gross view");
         require(snapshots[2].remainingLifetimeGross == 5 ether, "metered lifetime view");
 

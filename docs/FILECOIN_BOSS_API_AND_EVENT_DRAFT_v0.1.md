@@ -653,9 +653,12 @@ interface IBossAccount {
         bytes32[] memory subscriptionIds
     );
 
-The typed `BundleAcceptance` remains the SDK-level model. The deployed account accepts a bounded array of exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
+```
+
+The typed `BundleAcceptance` remains the SDK-level model. The deployed account accepts **1 through 32** exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
 
 
+```solidity
     function acknowledgeActivation(
         bytes32 subscriptionId,
         bytes32 provisioningHash,

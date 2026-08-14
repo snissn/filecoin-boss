@@ -20,6 +20,7 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
     bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
     bytes32 private constant ACTIVATION_ACK_TYPEHASH =
         keccak256("ActivationAcknowledgement(bytes32 subscriptionId,bytes32 provisioningHash)");
+    uint64 public constant accountVersion = 1;
 
     error Unauthorized(address caller);
     error InvalidOwner();
@@ -28,6 +29,7 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
     error InvalidAdapterRegistry();
     error InvalidAccountVersion();
     error InvalidOffer();
+    error InvalidBundleBatch();
     error UnsupportedBillingKind();
     error UnsupportedTerminationBillingKind();
     error OfferNotYetValid(uint256 currentEpoch, uint256 validAfterEpoch);
@@ -64,6 +66,8 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
     address public immutable factory;
 
     mapping(bytes32 subscriptionId => BossTypes.Subscription subscription) private _subscriptions;
+    uint256 private _subscriptionCount;
+    mapping(uint256 index => bytes32 subscriptionId) private _subscriptionIdAt;
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionForRail;
     mapping(bytes32 subscriptionId => address signingKey) private _offerSigningKey;
     mapping(bytes32 subscriptionId => bool acknowledged) private _activationAcknowledged;
@@ -100,10 +104,6 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
 
     function payer() external view returns (address) {
         return owner;
-    }
-
-    function accountVersion() external pure returns (uint64) {
-        return 1;
     }
 
     function acceptOffer(BossTypes.AcceptanceInput calldata input)
@@ -192,6 +192,7 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
             lastUsageToEpoch: 0,
             state: active ? BossTypes.SubscriptionState.ACTIVE : BossTypes.SubscriptionState.PENDING_ACTIVATION
         });
+        _subscriptionIdAt[_subscriptionCount++] = subscriptionId;
         _subscriptionForRail[railId] = subscriptionId;
         _offerSigningKey[subscriptionId] = offer.signingKey;
         if (
@@ -226,7 +227,7 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
         if (active) emit SubscriptionActivated(subscriptionId, acceptedEpoch);
     }
 
-    /// @notice Atomically accept a bounded set of encoded `acceptOffer` calls and record their bundle.
+    /// @notice Atomically accept 1 through 32 encoded `acceptOffer` calls and record their bundle.
     /// @dev Every entry must be ABI calldata for `acceptOffer(AcceptanceInput)`; any failure reverts the whole batch.
     function acceptBundle(address bundles, bytes32 manifestHash, uint64 version, bytes[] calldata encodedAcceptances)
         external
@@ -234,7 +235,8 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
         returns (bytes32 bundleId, bytes32[] memory subscriptionIds)
     {
         uint256 count = encodedAcceptances.length;
-        if (count == 0 || count > 32) revert InvalidOffer();
+        if (count == 0 || count > BossTypes.MAX_BUNDLE_COMPONENTS) revert InvalidBundleBatch();
+        bytes4 invalidBundleEncoding = InvalidOffer.selector;
         uint256 bundleCalldata;
         assembly ("memory-safe") {
             bundleCalldata := mload(0x40)
@@ -246,7 +248,10 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
             bytes calldata acceptance = encodedAcceptances[i];
             bytes32 subscriptionId;
             assembly ("memory-safe") {
-                if iszero(eq(shr(224, calldataload(acceptance.offset)), 0x64432960)) { revert(0, 0) }
+                if or(lt(acceptance.length, 4), iszero(eq(shr(224, calldataload(acceptance.offset)), 0x64432960))) {
+                    mstore(0, invalidBundleEncoding)
+                    revert(0, 4)
+                }
                 let pointer := mload(0x40)
                 calldatacopy(pointer, acceptance.offset, acceptance.length)
                 if iszero(delegatecall(gas(), address(), pointer, acceptance.length, pointer, 0x40)) {
@@ -254,7 +259,10 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
                     returndatacopy(pointer, 0, size)
                     revert(pointer, size)
                 }
-                if lt(returndatasize(), 0x40) { revert(0, 0) }
+                if lt(returndatasize(), 0x40) {
+                    mstore(0, invalidBundleEncoding)
+                    revert(0, 4)
+                }
                 subscriptionId := mload(pointer)
                 mstore(add(add(subscriptionIds, 0x20), shl(5, i)), subscriptionId)
             }
@@ -273,13 +281,24 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
                 returndatacopy(bundleCalldata, 0, size)
                 revert(bundleCalldata, size)
             }
-            if lt(returndatasize(), 0x20) { revert(0, 0) }
+            if lt(returndatasize(), 0x20) {
+                mstore(0, invalidBundleEncoding)
+                revert(0, 4)
+            }
             bundleId := mload(bundleCalldata)
         }
     }
 
     function activationAckDigest(bytes32 subscriptionId, bytes32 provisioningHash) public view returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(ACTIVATION_ACK_TYPEHASH, subscriptionId, provisioningHash));
+        bytes32 typehash = ACTIVATION_ACK_TYPEHASH;
+        bytes32 structHash;
+        assembly ("memory-safe") {
+            let pointer := mload(0x40)
+            mstore(pointer, typehash)
+            mstore(add(pointer, 0x20), subscriptionId)
+            mstore(add(pointer, 0x40), provisioningHash)
+            structHash := keccak256(pointer, 0x60)
+        }
         return BossHashes.hashTypedData(BossHashes.domainSeparator(block.chainid, address(this)), structHash);
     }
 
@@ -537,6 +556,10 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
         subscription = _subscriptions[subscriptionId];
     }
 
+    function subscriptionIndex(uint256 index) external view returns (bytes32 subscriptionId, uint256 count) {
+        return (_subscriptionIdAt[index], _subscriptionCount);
+    }
+
     function subscriptionForRail(uint256 railId) external view returns (bytes32) {
         return _subscriptionForRail[railId];
     }
@@ -588,11 +611,8 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
             ) subscription.state = BossTypes.SubscriptionState.EXHAUSTED;
         }
 
-        result = IFilecoinPayValidator.ValidationResult({
-            modifiedAmount: modifiedAmount,
-            settleUpto: toEpoch,
-            note: "FILECOIN_BOSS_STREAM_V1"
-        });
+        result =
+            IFilecoinPayValidator.ValidationResult({modifiedAmount: modifiedAmount, settleUpto: toEpoch, note: "BOSS1"});
     }
 
     function railTerminated(uint256 railId, address, uint256 endEpoch) external {

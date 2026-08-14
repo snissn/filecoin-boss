@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {BossAccount} from "../../src/BossAccount.sol";
 import {BossBundles} from "../../src/BossBundles.sol";
+import {BossFactory} from "../../src/BossFactory.sol";
 import {BossAdapterRegistry} from "../../src/BossAdapterRegistry.sol";
 import {BossServiceRegistry} from "../../src/BossServiceRegistry.sol";
 import {CappedMeteredAdapter} from "../../src/adapters/pricing/CappedMeteredAdapter.sol";
@@ -10,6 +11,7 @@ import {IBossResourceAdapter} from "../../src/interfaces/IBossResourceAdapter.so
 import {IFilecoinPayV1, IFilecoinPayValidator} from "../../src/interfaces/IFilecoinPayV1.sol";
 import {BossHashes} from "../../src/libraries/BossHashes.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
+import {RevertAssertions} from "../utils/RevertAssertions.sol";
 
 interface VmUsageClaims {
     struct Log {
@@ -25,6 +27,7 @@ interface VmUsageClaims {
     function etch(address target, bytes calldata newRuntimeBytecode) external;
     function recordLogs() external;
     function getRecordedLogs() external returns (Log[] memory logs);
+    function getCode(string calldata artifactPath) external returns (bytes memory creationCode);
 }
 
 contract MeteredResourceAdapter is IBossResourceAdapter {
@@ -172,7 +175,7 @@ contract MockMeteredFilecoinPayV1 is IFilecoinPayV1 {
     }
 }
 
-contract BossUsageClaimsTest {
+contract BossUsageClaimsTest is RevertAssertions {
     VmUsageClaims private constant vm = VmUsageClaims(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 private constant TIB = 1 << 40;
@@ -190,6 +193,7 @@ contract BossUsageClaimsTest {
     MeteredResourceAdapter private resourceAdapter;
     CappedMeteredAdapter private pricingAdapter;
     BossAccount private account;
+    BossFactory private bundleFactory;
     BossBundles private bundles;
     address private providerSigningKey;
     address private reporter;
@@ -216,8 +220,21 @@ contract BossUsageClaimsTest {
             address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://metered-pricing"
         );
 
-        account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
-        bundles = new BossBundles();
+        bytes memory factoryCreationCode = vm.getCode("BossFactory.sol:BossFactory");
+        address factoryAddress;
+        assembly ("memory-safe") {
+            factoryAddress := create(0, add(factoryCreationCode, 0x20), mload(factoryCreationCode))
+        }
+        require(factoryAddress != address(0), "factory deployment");
+        bundleFactory = BossFactory(factoryAddress);
+
+        bytes memory accountCreationCode = vm.getCode("BossAccount.sol:BossAccount");
+        account = BossAccount(
+            bundleFactory.createAccount(
+                address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1, accountCreationCode
+            )
+        );
+        bundles = new BossBundles(address(bundleFactory));
         pay.setOperatorApproval(address(0), address(this), address(account), true);
     }
 
@@ -403,6 +420,10 @@ contract BossUsageClaimsTest {
         (bytes32 bundleId, bytes32[] memory subscriptionIds) =
             account.acceptBundle(address(bundles), BUNDLE_MANIFEST, 1, encodedAcceptances);
         require(subscriptionIds.length == 2 && subscriptionIds[0] != subscriptionIds[1], "bundle subscriptions");
+        (bytes32 indexedFirst, uint256 subscriptionCount) = account.subscriptionIndex(0);
+        (bytes32 indexedSecond,) = account.subscriptionIndex(1);
+        require(subscriptionCount == 2, "subscription count");
+        require(indexedFirst == subscriptionIds[0] && indexedSecond == subscriptionIds[1], "subscription index");
         (BossTypes.Bundle memory bundle, address bundleAccount, uint256 componentCount) = bundles.getBundle(bundleId);
         require(bundle.owner == address(this), "bundle owner");
         require(bundleAccount == address(account), "bundle account");
@@ -460,22 +481,25 @@ contract BossUsageClaimsTest {
     function testAcceptBundleRejectsNonAcceptanceSelectorsAndInvalidBounds() public {
         bytes[] memory invalidSelector = new bytes[](1);
         invalidSelector[0] = abi.encodeCall(BossAccount.pause, (bytes32(0)));
-        (bool selectorAccepted,) = address(account).call(
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, invalidSelector))
+        _mustRevertWith(
+            address(account),
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, invalidSelector)),
+            BossAccount.InvalidOffer.selector
         );
-        require(!selectorAccepted, "non-acceptance selector executed");
 
         bytes[] memory empty = new bytes[](0);
-        (bool emptyAccepted,) = address(account).call(
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, empty))
+        _mustRevertWith(
+            address(account),
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, empty)),
+            BossAccount.InvalidBundleBatch.selector
         );
-        require(!emptyAccepted, "empty bundle accepted");
 
         bytes[] memory oversized = new bytes[](bundles.MAX_COMPONENTS() + 1);
-        (bool oversizedAccepted,) = address(account).call(
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, oversized))
+        _mustRevertWith(
+            address(account),
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, oversized)),
+            BossAccount.InvalidBundleBatch.selector
         );
-        require(!oversizedAccepted, "oversized bundle accepted");
     }
 
     function testDisabledAcceptedPricingAdapterRemainsUsable() public {

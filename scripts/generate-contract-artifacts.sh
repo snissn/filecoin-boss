@@ -21,6 +21,22 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "SOURCE_COMMIT is not available in this repository: $source_commit" >&2
     exit 1
   }
+  generated_pathspecs=(
+    ':(exclude)packages/contracts/abi/**'
+    ':(exclude)packages/contracts/bytecode/**'
+    ':(exclude)packages/contracts/artifacts.json'
+  )
+  if ! git diff --quiet "$source_commit" -- . "${generated_pathspecs[@]}"; then
+    echo "build inputs do not match SOURCE_COMMIT: $source_commit" >&2
+    git diff --stat "$source_commit" -- . "${generated_pathspecs[@]}" >&2
+    exit 1
+  fi
+  untracked=$(git ls-files --others --exclude-standard -- . "${generated_pathspecs[@]}")
+  if [[ -n "$untracked" ]]; then
+    echo "untracked build inputs are not represented by SOURCE_COMMIT: $source_commit" >&2
+    printf '%s\n' "$untracked" >&2
+    exit 1
+  fi
 fi
 
 forge build >/dev/null

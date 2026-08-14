@@ -16,6 +16,7 @@ interface IBossAccountRead {
     function adapterRegistry() external view returns (address);
     function factory() external view returns (address);
     function accountVersion() external view returns (uint64);
+    function subscriptionIndex(uint256 index) external view returns (bytes32 subscriptionId, uint256 count);
 
     function getSubscription(bytes32 subscriptionId)
         external
@@ -59,6 +60,7 @@ contract BossStateView {
         bytes32 subscriptionId;
         BossTypes.Subscription subscription;
         IFilecoinPayV1.RailView rail;
+        bool railRead;
         bool activationAcknowledged;
         bool railAssociationValid;
         uint256 grossSpent;
@@ -120,6 +122,29 @@ contract BossStateView {
         snapshots = new SubscriptionSnapshot[](count);
         for (uint256 i; i < count; ++i) {
             snapshots[i] = _subscription(account_, accountAddress, pay, payer_, subscriptionIds[i]);
+        }
+    }
+
+    function subscriptionPage(address accountAddress, uint256 offset, uint256 limit)
+        external
+        view
+        returns (SubscriptionSnapshot[] memory snapshots)
+    {
+        if (limit == 0 || limit > MAX_BATCH) revert InvalidBatch(limit);
+        IBossAccountRead account_ = _account(accountAddress);
+        (bytes32 firstId, uint256 total) = account_.subscriptionIndex(offset);
+        if (offset >= total) return new SubscriptionSnapshot[](0);
+
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 count = end - offset;
+        address pay = account_.filecoinPay();
+        address payer_ = account_.payer();
+        snapshots = new SubscriptionSnapshot[](count);
+        snapshots[0] = _subscription(account_, accountAddress, pay, payer_, firstId);
+        for (uint256 i = 1; i < count; ++i) {
+            (bytes32 subscriptionId,) = account_.subscriptionIndex(offset + i);
+            snapshots[i] = _subscription(account_, accountAddress, pay, payer_, subscriptionId);
         }
     }
 
@@ -203,6 +228,7 @@ contract BossStateView {
             BossTypes.remainingCap(snapshot.subscription.caps.lifetimeCapGross, snapshot.grossSpent);
         if (snapshot.subscription.state == BossTypes.SubscriptionState.ENDED) return snapshot;
         snapshot.rail = IFilecoinPayV1(pay).getRail(snapshot.subscription.railId);
+        snapshot.railRead = true;
         snapshot.railAssociationValid = account_.subscriptionForRail(snapshot.subscription.railId) == subscriptionId
             && snapshot.rail.from == payer_ && snapshot.rail.to == snapshot.subscription.beneficiary
             && snapshot.rail.operator == accountAddress && snapshot.rail.validator == accountAddress

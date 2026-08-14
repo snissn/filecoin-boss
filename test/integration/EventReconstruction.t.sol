@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {BossBundles} from "../../src/BossBundles.sol";
 import {MockBundleAccount} from "../mocks/MockBundleAccount.sol";
+import {MockBundleFactory} from "../mocks/MockBundleFactory.sol";
 
 interface VmEventLogs {
     struct Log {
@@ -24,10 +25,12 @@ contract EventReconstructionTest {
     bytes32 private constant SUBSCRIPTION_B = keccak256("event-subscription-b");
 
     function testBundleCanBeReconstructedFromEventsInOrder() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount account = new MockBundleAccount(address(this));
+        MockBundleFactory factory = new MockBundleFactory();
+        BossBundles bundles = new BossBundles(address(factory));
+        MockBundleAccount account = new MockBundleAccount(address(this), address(factory));
         account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
         account.setSubscription(SUBSCRIPTION_B, RESOURCE, 2);
+        factory.register(address(account));
 
         bytes32[] memory subscriptionIds = new bytes32[](2);
         subscriptionIds[0] = SUBSCRIPTION_A;

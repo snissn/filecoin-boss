@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import {BossBundles} from "../../src/BossBundles.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
 import {MockBundleAccount} from "../mocks/MockBundleAccount.sol";
+import {MockBundleFactory} from "../mocks/MockBundleFactory.sol";
 import {RevertAssertions} from "../utils/RevertAssertions.sol";
 
 contract BossBundlesTest is RevertAssertions {
@@ -14,8 +15,10 @@ contract BossBundlesTest is RevertAssertions {
     bytes32 private constant SUBSCRIPTION_B = keccak256("subscription-b");
 
     function testCreatesImmutableUserOwnedBundleAndPaginates() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount account = _accountWithTwoSubscriptions();
+        (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account) = _account(address(this));
+        account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
+        account.setSubscription(SUBSCRIPTION_B, RESOURCE, 2);
+        factory.register(address(account));
         bytes32[] memory subscriptionIds = _pair(SUBSCRIPTION_A, SUBSCRIPTION_B);
 
         bytes32 bundleId = bundles.createBundle(address(account), MANIFEST, 1, subscriptionIds);
@@ -49,8 +52,7 @@ contract BossBundlesTest is RevertAssertions {
     }
 
     function testPaginationRejectsInvalidLimitsAndCoversExactMaximum() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount account = new MockBundleAccount(address(this));
+        (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account) = _account(address(this));
         uint256 maximum = bundles.MAX_COMPONENTS();
         bytes32[] memory subscriptionIds = new bytes32[](maximum);
         for (uint256 i; i < maximum; ++i) {
@@ -58,6 +60,7 @@ contract BossBundlesTest is RevertAssertions {
             subscriptionIds[i] = subscriptionId;
             account.setSubscription(subscriptionId, RESOURCE, i + 1);
         }
+        factory.register(address(account));
 
         bytes32 bundleId = bundles.createBundle(address(account), MANIFEST, 1, subscriptionIds);
         bytes32[] memory full = bundles.components(bundleId, 0, maximum);
@@ -76,32 +79,40 @@ contract BossBundlesTest is RevertAssertions {
         );
     }
 
-    function testRejectsForeignAccountCrossResourceDuplicateAndOversizedBundles() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount foreignAccount = new MockBundleAccount(address(0xBEEF));
-        foreignAccount.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
-        bytes32[] memory one = _single(SUBSCRIPTION_A);
+    function testRejectsUnregisteredForeignCrossResourceDuplicateAndOversizedBundles() public {
+        (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account) = _account(address(this));
+        account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
         _mustRevertWith(
             address(bundles),
-            abi.encodeCall(BossBundles.createBundle, (address(foreignAccount), MANIFEST, 1, one)),
+            abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, _single(SUBSCRIPTION_A))),
+            BossBundles.InvalidAccount.selector
+        );
+        factory.register(address(account));
+
+        MockBundleAccount foreignAccount = new MockBundleAccount(address(0xBEEF), address(factory));
+        foreignAccount.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
+        factory.register(address(foreignAccount));
+        _mustRevertWith(
+            address(bundles),
+            abi.encodeCall(BossBundles.createBundle, (address(foreignAccount), MANIFEST, 1, _single(SUBSCRIPTION_A))),
             BossBundles.UnauthorizedOwner.selector
         );
 
-        MockBundleAccount account = new MockBundleAccount(address(this));
-        account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
         account.setSubscription(SUBSCRIPTION_B, OTHER_RESOURCE, 2);
-        bytes32[] memory mixed = _pair(SUBSCRIPTION_A, SUBSCRIPTION_B);
         _mustRevertWith(
             address(bundles),
-            abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, mixed)),
+            abi.encodeCall(
+                BossBundles.createBundle, (address(account), MANIFEST, 1, _pair(SUBSCRIPTION_A, SUBSCRIPTION_B))
+            ),
             BossBundles.ResourceMismatch.selector
         );
 
         account.setSubscription(SUBSCRIPTION_B, RESOURCE, 2);
-        bytes32[] memory duplicate = _pair(SUBSCRIPTION_A, SUBSCRIPTION_A);
         _mustRevertWith(
             address(bundles),
-            abi.encodeCall(BossBundles.createBundle, (address(account), MANIFEST, 1, duplicate)),
+            abi.encodeCall(
+                BossBundles.createBundle, (address(account), MANIFEST, 1, _pair(SUBSCRIPTION_A, SUBSCRIPTION_A))
+            ),
             BossBundles.DuplicateComponent.selector
         );
 
@@ -114,13 +125,11 @@ contract BossBundlesTest is RevertAssertions {
     }
 
     function testBundleUsesOnlyReadSelectorsAndCannotMutateSubscriptionOrRailAuthority() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount account = new MockBundleAccount(address(this));
+        (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account) = _account(address(this));
         account.setSubscription(SUBSCRIPTION_A, RESOURCE, 77);
+        factory.register(address(account));
         bytes32 bundleId = bundles.createBundle(address(account), MANIFEST, 1, _single(SUBSCRIPTION_A));
 
-        // MockBundleAccount's fallback rejects every selector other than owner/getSubscription.
-        // Successful creation therefore proves the bundle path used no mutation or execution call.
         BossTypes.Subscription memory subscription = account.getSubscription(SUBSCRIPTION_A);
         require(subscription.resourceKey == RESOURCE, "bundle changed resource");
         require(subscription.railId == 77, "bundle changed rail");
@@ -129,8 +138,8 @@ contract BossBundlesTest is RevertAssertions {
     }
 
     function testRejectsUnknownSubscriptionInvalidInputsAndUnknownBundle() public {
-        BossBundles bundles = new BossBundles();
-        MockBundleAccount account = new MockBundleAccount(address(this));
+        (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account) = _account(address(this));
+        factory.register(address(account));
         bytes32[] memory one = _single(SUBSCRIPTION_A);
 
         _mustRevertWith(
@@ -166,10 +175,13 @@ contract BossBundlesTest is RevertAssertions {
         );
     }
 
-    function _accountWithTwoSubscriptions() private returns (MockBundleAccount account) {
-        account = new MockBundleAccount(address(this));
-        account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
-        account.setSubscription(SUBSCRIPTION_B, RESOURCE, 2);
+    function _account(address owner_)
+        private
+        returns (MockBundleFactory factory, BossBundles bundles, MockBundleAccount account)
+    {
+        factory = new MockBundleFactory();
+        bundles = new BossBundles(address(factory));
+        account = new MockBundleAccount(owner_, address(factory));
     }
 
     function _single(bytes32 value) private pure returns (bytes32[] memory values) {

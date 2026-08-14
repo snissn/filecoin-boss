@@ -3,6 +3,8 @@ pragma solidity ^0.8.30;
 
 /// @notice Canonical Filecoin Boss v1 wire types and cap helpers.
 library BossTypes {
+    uint256 internal constant MAX_BUNDLE_COMPONENTS = 32;
+
     enum ResourceKind {
         FWSS_PDP_DATASET,
         BARE_PDP_DATASET,

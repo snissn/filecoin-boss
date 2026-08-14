@@ -25,6 +25,7 @@ on:
       - packages/contracts/**
       - deployments/schema.json
       - .github/workflows/contract-artifacts.yml
+  workflow_dispatch:
 
 permissions:
   contents: read

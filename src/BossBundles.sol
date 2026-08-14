@@ -13,7 +13,8 @@ interface IBossBundleAccount {
 }
 
 /// @notice Immutable user-owned grouping records for existing Boss subscriptions.
-/// @dev Bundles confer no account, rail, or data-access authority.
+/// @dev Bundles confer no account, rail, or data-access authority. `manifestHash` is an opaque,
+/// unverified off-chain pointer and is not bound to `componentIds`; component events are authoritative.
 contract BossBundles {
     uint256 public constant MAX_COMPONENTS = 32;
 
@@ -29,6 +30,7 @@ contract BossBundles {
     error UnknownBundle(bytes32 bundleId);
     error InvalidPage(uint256 limit);
     error InvalidComponentIndex(uint256 index);
+    error ReentrantBundleCreation();
 
     event BundleCreated(
         bytes32 indexed bundleId,
@@ -48,11 +50,14 @@ contract BossBundles {
     }
 
     mapping(bytes32 bundleId => StoredBundle bundle) private _bundles;
+    bool private _creating;
 
     function createBundle(address account, bytes32 manifestHash, uint64 version, bytes32[] calldata subscriptionIds)
         external
         returns (bytes32 bundleId)
     {
+        if (_creating) revert ReentrantBundleCreation();
+        _creating = true;
         if (account == address(0) || account.code.length == 0) revert InvalidAccount();
         if (manifestHash == bytes32(0)) revert InvalidManifest();
         if (version == 0) revert InvalidVersion();
@@ -60,7 +65,9 @@ contract BossBundles {
         if (count == 0 || count > MAX_COMPONENTS) revert InvalidComponentCount(count);
 
         address accountOwner = IBossBundleAccount(account).owner();
-        if (accountOwner != msg.sender) revert UnauthorizedOwner(accountOwner, msg.sender);
+        if (msg.sender != accountOwner && msg.sender != account) {
+            revert UnauthorizedOwner(accountOwner, msg.sender);
+        }
 
         BossTypes.Subscription memory first = IBossBundleAccount(account).getSubscription(subscriptionIds[0]);
         if (first.state == BossTypes.SubscriptionState.NONE) revert UnknownSubscription(subscriptionIds[0]);
@@ -68,7 +75,7 @@ contract BossBundles {
         if (resourceKey == bytes32(0)) revert ResourceMismatch(bytes32(0), resourceKey);
 
         bundleId =
-            keccak256(abi.encode("FILECOIN_BOSS_BUNDLE_V1", msg.sender, account, resourceKey, manifestHash, version));
+            keccak256(abi.encode("FILECOIN_BOSS_BUNDLE_V1", accountOwner, account, resourceKey, manifestHash, version));
         if (_bundles[bundleId].bundle.bundleId != bytes32(0)) revert BundleAlreadyExists(bundleId);
 
         for (uint256 i; i < count; ++i) {
@@ -87,7 +94,7 @@ contract BossBundles {
         StoredBundle storage stored = _bundles[bundleId];
         stored.bundle = BossTypes.Bundle({
             bundleId: bundleId,
-            owner: msg.sender,
+            owner: accountOwner,
             resourceKey: resourceKey,
             manifestHash: manifestHash,
             version: version
@@ -97,7 +104,8 @@ contract BossBundles {
             stored.componentIds.push(subscriptionIds[i]);
             emit BundleComponentAdded(bundleId, subscriptionIds[i], i);
         }
-        emit BundleCreated(bundleId, msg.sender, account, resourceKey, manifestHash, version, count);
+        emit BundleCreated(bundleId, accountOwner, account, resourceKey, manifestHash, version, count);
+        _creating = false;
     }
 
     function getBundle(bytes32 bundleId)

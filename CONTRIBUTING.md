@@ -42,4 +42,4 @@ The CI workflow uses Foundry `v1.3.5` and Solidity `0.8.30`, matching the locked
 
 ## Generated artifacts
 
-Generated ABIs and deployment manifests must be reproducible from committed source and scripts. Do not hand-edit generated output. Every artifact must record the exact protocol commit and deployment/network authority it represents.
+Generated ABIs and deployment manifests must be reproducible from committed source and scripts. Do not hand-edit generated output. Every artifact records the exact source/protocol commit and compiler configuration it represents. Commit source first, then generate artifacts in a dedicated follow-up commit with `SOURCE_COMMIT` set to the source commit; CI verifies that no build input changed between that commit and the artifact head. Deployment manifests separately record their network authority.

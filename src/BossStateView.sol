@@ -25,13 +25,14 @@ interface IBossAccountRead {
     function subscriptionForRail(uint256 railId) external view returns (bytes32);
     function activationAcknowledged(bytes32 subscriptionId) external view returns (bool);
 
-    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 window)
+    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 nonce, uint256 window)
         external
         view
-        returns (bool claimConsumed, uint256 windowGross);
+        returns (bool claimConsumed, bool nonceConsumed, uint256 windowGross);
 }
 
 /// @notice Stateless bounded read model for Boss accounts, subscriptions, resources, quotes, and Pay rails.
+/// @dev Snapshots are unauthenticated tooling views; consumers must verify returned factory provenance.
 contract BossStateView {
     uint256 public constant MAX_BATCH = 32;
 
@@ -77,6 +78,7 @@ contract BossStateView {
         bytes32 digest;
         address reporter;
         bool claimConsumed;
+        bool nonceConsumed;
         uint256 window;
         uint256 windowGross;
         uint256 remainingWindowGross;
@@ -101,7 +103,8 @@ contract BossStateView {
         view
         returns (SubscriptionSnapshot memory snapshot)
     {
-        return _subscription(_account(accountAddress), accountAddress, subscriptionId);
+        IBossAccountRead account_ = _account(accountAddress);
+        return _subscription(account_, accountAddress, account_.filecoinPay(), account_.payer(), subscriptionId);
     }
 
     function subscriptions(address accountAddress, bytes32[] calldata subscriptionIds)
@@ -112,9 +115,11 @@ contract BossStateView {
         uint256 count = subscriptionIds.length;
         if (count == 0 || count > MAX_BATCH) revert InvalidBatch(count);
         IBossAccountRead account_ = _account(accountAddress);
+        address pay = account_.filecoinPay();
+        address payer_ = account_.payer();
         snapshots = new SubscriptionSnapshot[](count);
         for (uint256 i; i < count; ++i) {
-            snapshots[i] = _subscription(account_, accountAddress, subscriptionIds[i]);
+            snapshots[i] = _subscription(account_, accountAddress, pay, payer_, subscriptionIds[i]);
         }
     }
 
@@ -162,8 +167,10 @@ contract BossStateView {
 
         uint256 windowSize = subscription_.caps.chargeWindowEpochs;
         if (
-            windowSize == 0 || usageClaim.toEpoch <= usageClaim.fromEpoch
-                || usageClaim.fromEpoch < subscription_.acceptedEpoch
+            windowSize == 0 || usageClaim.claimId == bytes32(0) || usageClaim.toEpoch <= usageClaim.fromEpoch
+                || usageClaim.toEpoch > block.number || usageClaim.fromEpoch < subscription_.acceptedEpoch
+                || usageClaim.fromEpoch < subscription_.activatedEpoch
+                || usageClaim.fromEpoch < subscription_.lastUsageToEpoch
         ) return snapshot;
 
         uint256 startWindow = (uint256(usageClaim.fromEpoch) - subscription_.acceptedEpoch) / windowSize;
@@ -172,17 +179,19 @@ contract BossStateView {
 
         snapshot.windowValid = true;
         snapshot.window = startWindow;
-        (snapshot.claimConsumed, snapshot.windowGross) =
-            account_.usageClaimState(subscriptionId, usageClaim.claimId, startWindow);
+        (snapshot.claimConsumed, snapshot.nonceConsumed, snapshot.windowGross) =
+            account_.usageClaimState(subscriptionId, usageClaim.claimId, usageClaim.nonce, startWindow);
         snapshot.remainingWindowGross =
             BossTypes.remainingCap(subscription_.caps.maxChargePerWindow, snapshot.windowGross);
     }
 
-    function _subscription(IBossAccountRead account_, address accountAddress, bytes32 subscriptionId)
-        private
-        view
-        returns (SubscriptionSnapshot memory snapshot)
-    {
+    function _subscription(
+        IBossAccountRead account_,
+        address accountAddress,
+        address pay,
+        address payer_,
+        bytes32 subscriptionId
+    ) private view returns (SubscriptionSnapshot memory snapshot) {
         snapshot.subscriptionId = subscriptionId;
         snapshot.subscription = account_.getSubscription(subscriptionId);
         if (snapshot.subscription.state == BossTypes.SubscriptionState.NONE) return snapshot;
@@ -192,9 +201,10 @@ contract BossStateView {
         snapshot.grossSpent = snapshot.subscription.settledGross + snapshot.subscription.oneTimeChargedGross;
         snapshot.remainingLifetimeGross =
             BossTypes.remainingCap(snapshot.subscription.caps.lifetimeCapGross, snapshot.grossSpent);
-        snapshot.rail = IFilecoinPayV1(account_.filecoinPay()).getRail(snapshot.subscription.railId);
+        if (snapshot.subscription.state == BossTypes.SubscriptionState.ENDED) return snapshot;
+        snapshot.rail = IFilecoinPayV1(pay).getRail(snapshot.subscription.railId);
         snapshot.railAssociationValid = account_.subscriptionForRail(snapshot.subscription.railId) == subscriptionId
-            && snapshot.rail.from == account_.payer() && snapshot.rail.to == snapshot.subscription.beneficiary
+            && snapshot.rail.from == payer_ && snapshot.rail.to == snapshot.subscription.beneficiary
             && snapshot.rail.operator == accountAddress && snapshot.rail.validator == accountAddress
             && snapshot.rail.token == snapshot.subscription.token;
     }
@@ -206,9 +216,6 @@ contract BossStateView {
 
     function _requirePinnedAdapter(address registryAddress, address adapter, BossTypes.AdapterKind kind) private view {
         BossTypes.AdapterRecord memory record = BossAdapterRegistry(registryAddress).getAdapter(adapter);
-        if (
-            record.kind != kind || record.interfaceVersion != 1 || record.codeHash == bytes32(0)
-                || adapter.code.length == 0 || adapter.codehash != record.codeHash
-        ) revert AdapterCodeMismatch(adapter);
+        if (!BossTypes.isPinnedAdapter(record, adapter, kind)) revert AdapterCodeMismatch(adapter);
     }
 }

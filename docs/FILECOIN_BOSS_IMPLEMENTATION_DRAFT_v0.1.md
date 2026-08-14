@@ -622,8 +622,14 @@ function acceptOffer(
 ) external returns (bytes32 subscriptionId, uint256 railId);
 
 function acceptBundle(
-    BundleAcceptance calldata bundle
+    address bundles,
+    bytes32 manifestHash,
+    uint64 version,
+    bytes[] calldata encodedAcceptances
 ) external returns (bytes32 bundleId, bytes32[] memory subscriptionIds);
+
+The typed `BundleAcceptance` remains the SDK-level model. The deployed account accepts a bounded array of exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
+
 
 function activate(bytes32 subscriptionId) external;
 function pause(bytes32 subscriptionId) external;

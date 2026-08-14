@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BossStateView} from "../../src/BossStateView.sol";
+import {IBossAccountEvents} from "../../src/interfaces/IBossAccountEvents.sol";
 import {IFilecoinPayV1} from "../../src/interfaces/IFilecoinPayV1.sol";
 import {BossHashes} from "../../src/libraries/BossHashes.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
@@ -15,6 +16,7 @@ interface VmA8LifecycleLogs {
 
     function recordLogs() external;
     function getRecordedLogs() external returns (Log[] memory logs);
+    function roll(uint256 newHeight) external;
 }
 
 contract A8LifecyclePay {
@@ -29,7 +31,7 @@ contract A8LifecyclePay {
     }
 }
 
-contract A8LifecycleAccount {
+contract A8LifecycleAccount is IBossAccountEvents {
     address public owner;
     address public payer;
     address public filecoinPay;
@@ -42,40 +44,8 @@ contract A8LifecycleAccount {
     mapping(uint256 railId => bytes32 subscriptionId) private _subscriptionsByRail;
     mapping(bytes32 subscriptionId => bool acknowledged) private _acknowledged;
     mapping(bytes32 subscriptionId => mapping(bytes32 claimId => bool consumed)) private _claimConsumed;
+    mapping(bytes32 subscriptionId => mapping(uint256 nonce => bool consumed)) private _nonceConsumed;
     mapping(bytes32 subscriptionId => mapping(uint256 window => uint256 gross)) private _windowGross;
-
-    event SubscriptionAccepted(
-        bytes32 indexed subscriptionId,
-        address indexed account,
-        bytes32 indexed offerHash,
-        bytes32 resourceKey,
-        uint256 railId,
-        address beneficiary,
-        address token,
-        uint256 initialRate,
-        uint256 initialFixedBudget
-    );
-    event SubscriptionActivated(bytes32 indexed subscriptionId, uint64 activatedEpoch);
-    event RateSynchronized(
-        bytes32 indexed subscriptionId,
-        uint256 oldRate,
-        uint256 newRate,
-        uint64 quoteEpoch,
-        uint64 validThroughEpoch,
-        bytes32 resourceStatusHash
-    );
-    event SubscriptionPaused(bytes32 indexed subscriptionId, uint64 pausedEpoch);
-    event SubscriptionResumed(bytes32 indexed subscriptionId, uint64 resumedEpoch);
-    event SubscriptionTerminationRequested(bytes32 indexed subscriptionId, uint64 requestEpoch);
-    event SubscriptionPayTerminationObserved(bytes32 indexed subscriptionId, uint256 indexed railId, uint256 endEpoch);
-    event SubscriptionEnded(bytes32 indexed subscriptionId, uint64 endedEpoch);
-    event UsageClaimCharged(
-        bytes32 indexed subscriptionId,
-        bytes32 indexed claimId,
-        bytes32 claimHash,
-        uint256 rawGross,
-        uint256 chargedGross
-    );
 
     constructor(address owner_, address pay_) {
         owner = owner_;
@@ -91,8 +61,17 @@ contract A8LifecycleAccount {
         _acknowledged[subscriptionId] = acknowledged;
     }
 
-    function setUsageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 window, uint256 gross) external {
-        _claimConsumed[subscriptionId][claimId] = true;
+    function setUsageClaimState(
+        bytes32 subscriptionId,
+        bytes32 claimId,
+        uint256 nonce,
+        uint256 window,
+        bool claimConsumed,
+        bool nonceConsumed,
+        uint256 gross
+    ) external {
+        _claimConsumed[subscriptionId][claimId] = claimConsumed;
+        _nonceConsumed[subscriptionId][nonce] = nonceConsumed;
         _windowGross[subscriptionId][window] = gross;
     }
 
@@ -112,12 +91,16 @@ contract A8LifecycleAccount {
         return _acknowledged[subscriptionId];
     }
 
-    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 window)
+    function usageClaimState(bytes32 subscriptionId, bytes32 claimId, uint256 nonce, uint256 window)
         external
         view
-        returns (bool claimConsumed, uint256 windowGross)
+        returns (bool claimConsumed, bool nonceConsumed, uint256 windowGross)
     {
-        return (_claimConsumed[subscriptionId][claimId], _windowGross[subscriptionId][window]);
+        return (
+            _claimConsumed[subscriptionId][claimId],
+            _nonceConsumed[subscriptionId][nonce],
+            _windowGross[subscriptionId][window]
+        );
     }
 
     function emitFlatLifecycle(bytes32 subscriptionId) external {
@@ -173,7 +156,13 @@ contract A8LifecycleAccount {
         );
         emit SubscriptionActivated(subscriptionId, 100);
         emit UsageClaimCharged(
-            subscriptionId, usageClaim.claimId, BossHashes.hashUsageClaim(subscriptionId, usageClaim), 7 ether, 5 ether
+            subscriptionId,
+            usageClaim.claimId,
+            BossHashes.hashUsageClaim(subscriptionId, usageClaim),
+            usageClaim.units,
+            7 ether,
+            5 ether,
+            usageClaim.evidenceHash
         );
     }
 }
@@ -192,6 +181,7 @@ contract A8LifecycleReconstructionTest {
     address private constant REPORTER = address(0xCAFE);
 
     function testReconstructsFlatCapacityAndMeteredLifecycleFromEventsAndViews() public {
+        VM.roll(200);
         A8LifecyclePay pay = new A8LifecyclePay();
         A8LifecycleAccount account = new A8LifecycleAccount(address(this), address(pay));
         BossStateView stateView = new BossStateView();
@@ -266,7 +256,7 @@ contract A8LifecycleReconstructionTest {
             evidenceURI: "ipfs://a8-evidence",
             nonce: 9
         });
-        account.setUsageClaimState(METERED_ID, CLAIM_ID, 0, 5 ether);
+        account.setUsageClaimState(METERED_ID, CLAIM_ID, usageClaim.nonce, 0, true, true, 5 ether);
 
         VM.recordLogs();
         account.emitFlatLifecycle(FLAT_ID);
@@ -283,7 +273,7 @@ contract A8LifecycleReconstructionTest {
         bytes32 terminationSignature = keccak256("SubscriptionTerminationRequested(bytes32,uint64)");
         bytes32 payTerminationSignature = keccak256("SubscriptionPayTerminationObserved(bytes32,uint256,uint256)");
         bytes32 endedSignature = keccak256("SubscriptionEnded(bytes32,uint64)");
-        bytes32 usageSignature = keccak256("UsageClaimCharged(bytes32,bytes32,bytes32,uint256,uint256)");
+        bytes32 usageSignature = keccak256("UsageClaimCharged(bytes32,bytes32,bytes32,uint256,uint256,uint256,bytes32)");
 
         uint256 acceptedSeen;
         bool flatActivated;
@@ -361,10 +351,12 @@ contract A8LifecycleReconstructionTest {
             } else if (signature == usageSignature) {
                 require(subscriptionId == METERED_ID, "usage subscription");
                 require(logs[i].topics[2] == CLAIM_ID, "usage claim id");
-                (bytes32 claimHash, uint256 rawGross, uint256 chargedGross) =
-                    abi.decode(logs[i].data, (bytes32, uint256, uint256));
+                (bytes32 claimHash, uint256 units, uint256 rawGross, uint256 chargedGross, bytes32 evidenceHash) =
+                    abi.decode(logs[i].data, (bytes32, uint256, uint256, uint256, bytes32));
                 require(claimHash == BossHashes.hashUsageClaim(METERED_ID, usageClaim), "usage claim hash");
+                require(units == usageClaim.units, "usage units");
                 require(rawGross == 7 ether && chargedGross == 5 ether, "usage gross");
+                require(evidenceHash == usageClaim.evidenceHash, "usage evidence");
                 meteredClaimObserved = true;
             }
         }
@@ -382,7 +374,8 @@ contract A8LifecycleReconstructionTest {
         BossStateView.SubscriptionSnapshot[] memory snapshots =
             stateView.subscriptions(address(account), subscriptionIds);
 
-        require(snapshots[0].exists && snapshots[0].railAssociationValid, "flat view");
+        require(snapshots[0].exists && !snapshots[0].railAssociationValid, "flat finalized view");
+        require(snapshots[0].rail.from == address(0), "flat finalized rail fetched");
         require(snapshots[0].subscription.state == BossTypes.SubscriptionState.ENDED, "flat ended view");
         require(snapshots[0].subscription.payEndEpoch == 130, "flat termination view");
         require(snapshots[1].exists && snapshots[1].railAssociationValid, "capacity view");
@@ -392,9 +385,25 @@ contract A8LifecycleReconstructionTest {
         require(snapshots[2].grossSpent == 5 ether, "metered gross view");
         require(snapshots[2].remainingLifetimeGross == 5 ether, "metered lifetime view");
 
-        BossStateView.ClaimSnapshot memory claimSnapshot = stateView.claim(address(account), METERED_ID, usageClaim);
-        require(claimSnapshot.subscriptionExists && claimSnapshot.windowValid, "claim view existence");
-        require(claimSnapshot.claimHash == BossHashes.hashUsageClaim(METERED_ID, usageClaim), "claim hash");
+        BossStateView.ClaimSnapshot memory historical = stateView.claim(address(account), METERED_ID, usageClaim);
+        require(historical.subscriptionExists && !historical.windowValid, "historical overlap accepted");
+        require(historical.claimHash == BossHashes.hashUsageClaim(METERED_ID, usageClaim), "historical claim hash");
+        (bool claimConsumed, bool nonceConsumed, uint256 windowGross) =
+            account.usageClaimState(METERED_ID, usageClaim.claimId, usageClaim.nonce, 0);
+        require(claimConsumed && nonceConsumed && windowGross == 5 ether, "historical replay state");
+
+        BossTypes.UsageClaim memory candidate = BossTypes.UsageClaim({
+            claimId: keccak256("a8-next-claim"),
+            fromEpoch: 110,
+            toEpoch: 120,
+            units: 1 << 39,
+            evidenceHash: keccak256("a8-next-evidence"),
+            evidenceURI: "ipfs://a8-next-evidence",
+            nonce: 10
+        });
+        BossStateView.ClaimSnapshot memory claimSnapshot = stateView.claim(address(account), METERED_ID, candidate);
+        require(claimSnapshot.subscriptionExists && claimSnapshot.windowValid, "candidate claim view");
+        require(claimSnapshot.claimHash == BossHashes.hashUsageClaim(METERED_ID, candidate), "claim hash");
         require(
             claimSnapshot.digest
                 == BossHashes.hashTypedData(
@@ -403,7 +412,7 @@ contract A8LifecycleReconstructionTest {
             "claim digest"
         );
         require(claimSnapshot.reporter == REPORTER, "claim reporter");
-        require(claimSnapshot.claimConsumed, "claim consumption");
+        require(!claimSnapshot.claimConsumed && !claimSnapshot.nonceConsumed, "fresh replay state");
         require(claimSnapshot.window == 0 && claimSnapshot.windowGross == 5 ether, "claim window");
         require(claimSnapshot.remainingWindowGross == 5 ether, "window remaining");
         require(claimSnapshot.remainingLifetimeGross == 5 ether, "lifetime remaining");

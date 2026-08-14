@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BossAccount} from "../../src/BossAccount.sol";
+import {BossBundles} from "../../src/BossBundles.sol";
 import {BossAdapterRegistry} from "../../src/BossAdapterRegistry.sol";
 import {BossServiceRegistry} from "../../src/BossServiceRegistry.sol";
 import {CappedMeteredAdapter} from "../../src/adapters/pricing/CappedMeteredAdapter.sol";
@@ -11,11 +12,19 @@ import {BossHashes} from "../../src/libraries/BossHashes.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
 
 interface VmUsageClaims {
+    struct Log {
+        bytes32[] topics;
+        bytes data;
+        address emitter;
+    }
+
     function addr(uint256 privateKey) external returns (address keyAddr);
     function prank(address sender) external;
     function roll(uint256 newHeight) external;
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
     function etch(address target, bytes calldata newRuntimeBytecode) external;
+    function recordLogs() external;
+    function getRecordedLogs() external returns (Log[] memory logs);
 }
 
 contract MeteredResourceAdapter is IBossResourceAdapter {
@@ -47,6 +56,10 @@ contract MockMeteredFilecoinPayV1 is IFilecoinPayV1 {
     mapping(uint256 railId => uint256 gross) public oneTimeGross;
 
     uint256 private _nextRailId = 1;
+
+    function nextRailId() external view returns (uint256) {
+        return _nextRailId;
+    }
 
     function setOperatorApproval(address token, address client, address operator, bool approved) external {
         require(msg.sender == client, "only client");
@@ -169,6 +182,7 @@ contract BossUsageClaimsTest {
     address private constant BENEFICIARY = address(0xBEEF);
     bytes32 private constant SERVICE_ID = keccak256("capped-egress");
     bytes32 private constant SERVICE_TYPE = keccak256("capped-egress");
+    bytes32 private constant BUNDLE_MANIFEST = keccak256("metered-bundle-manifest");
 
     MockMeteredFilecoinPayV1 private pay;
     BossServiceRegistry private serviceRegistry;
@@ -176,6 +190,7 @@ contract BossUsageClaimsTest {
     MeteredResourceAdapter private resourceAdapter;
     CappedMeteredAdapter private pricingAdapter;
     BossAccount private account;
+    BossBundles private bundles;
     address private providerSigningKey;
     address private reporter;
 
@@ -202,6 +217,7 @@ contract BossUsageClaimsTest {
         );
 
         account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
+        bundles = new BossBundles();
         pay.setOperatorApproval(address(0), address(this), address(account), true);
     }
 
@@ -339,10 +355,127 @@ contract BossUsageClaimsTest {
 
         require(account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim)) == 0, "zero charge");
         require(pay.oneTimeGross(railId) == 0, "no Pay payment");
-        (bool claimConsumed, uint256 windowGross) = account.usageClaimState(subscriptionId, claim.claimId, 0);
+        (bool claimConsumed, bool nonceConsumed, uint256 windowGross) =
+            account.usageClaimState(subscriptionId, claim.claimId, claim.nonce, 0);
         require(claimConsumed, "claim consumption not readable");
+        require(nonceConsumed, "nonce consumption not readable");
         require(windowGross == 0, "zero claim changed window gross");
         _mustFailClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
+    }
+
+    function testUsageClaimEventCarriesCompleteReconstructablePreimage() public {
+        (bytes32 subscriptionId,) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 31));
+        vm.roll(120);
+        BossTypes.UsageClaim memory claim = _claim(31, 100, 110, TIB / 10);
+
+        vm.recordLogs();
+        uint256 charged = account.submitUsageClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
+        VmUsageClaims.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 signature = keccak256("UsageClaimCharged(bytes32,bytes32,bytes32,uint256,uint256,uint256,bytes32)");
+        bool observed;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(account) || logs[i].topics.length != 3 || logs[i].topics[0] != signature) {
+                continue;
+            }
+            require(logs[i].topics[1] == subscriptionId, "event subscription");
+            require(logs[i].topics[2] == claim.claimId, "event claim id");
+            (bytes32 claimHash, uint256 units, uint256 rawGross, uint256 chargedGross, bytes32 evidenceHash) =
+                abi.decode(logs[i].data, (bytes32, uint256, uint256, uint256, bytes32));
+            require(claimHash == BossHashes.hashUsageClaim(subscriptionId, claim), "event claim hash");
+            require(units == claim.units, "event units");
+            require(rawGross == (claim.units * 7 ether) / TIB, "event raw gross");
+            require(chargedGross == charged, "event charged gross");
+            require(evidenceHash == claim.evidenceHash, "event evidence hash");
+            observed = true;
+        }
+        require(observed, "usage event missing");
+    }
+
+    function testAcceptBundleAtomicallyCreatesComponentsAndKeepsLifecyclesIndependent() public {
+        BossTypes.AcceptanceInput memory first = _input(3 ether, 20 ether, 10 ether, 5 ether, 60);
+        BossTypes.AcceptanceInput memory second = _input(4 ether, 20 ether, 10 ether, 5 ether, 61);
+        first.resource.resourceId = 777;
+        second.resource.resourceId = 777;
+        bytes[] memory encodedAcceptances = new bytes[](2);
+        encodedAcceptances[0] = abi.encodeCall(BossAccount.acceptOffer, (first));
+        encodedAcceptances[1] = abi.encodeCall(BossAccount.acceptOffer, (second));
+
+        (bytes32 bundleId, bytes32[] memory subscriptionIds) =
+            account.acceptBundle(address(bundles), BUNDLE_MANIFEST, 1, encodedAcceptances);
+        require(subscriptionIds.length == 2 && subscriptionIds[0] != subscriptionIds[1], "bundle subscriptions");
+        (BossTypes.Bundle memory bundle, address bundleAccount, uint256 componentCount) = bundles.getBundle(bundleId);
+        require(bundle.owner == address(this), "bundle owner");
+        require(bundleAccount == address(account), "bundle account");
+        require(bundle.resourceKey == BossHashes.hashResource(first.resource), "bundle resource");
+        require(componentCount == 2, "bundle component count");
+        require(bundles.componentAt(bundleId, 0) == subscriptionIds[0], "first component");
+        require(bundles.componentAt(bundleId, 1) == subscriptionIds[1], "second component");
+
+        account.pause(subscriptionIds[0]);
+        require(account.getSubscription(subscriptionIds[0]).state == BossTypes.SubscriptionState.PAUSED, "first paused");
+        require(
+            account.getSubscription(subscriptionIds[1]).state == BossTypes.SubscriptionState.ACTIVE, "second changed"
+        );
+    }
+
+    function testAcceptBundleRollsBackEveryRailAndSubscriptionWhenOneComponentFails() public {
+        BossTypes.AcceptanceInput memory first = _input(3 ether, 20 ether, 10 ether, 5 ether, 62);
+        BossTypes.AcceptanceInput memory second = _input(4 ether, 20 ether, 10 ether, 5 ether, 63);
+        first.resource.resourceId = 888;
+        second.resource.resourceId = 888;
+        second.caps.maxSingleCharge = 0;
+        bytes[] memory encodedAcceptances = new bytes[](2);
+        encodedAcceptances[0] = abi.encodeCall(BossAccount.acceptOffer, (first));
+        encodedAcceptances[1] = abi.encodeCall(BossAccount.acceptOffer, (second));
+
+        bytes32 firstId = _subscriptionId(first);
+        bytes32 secondId = _subscriptionId(second);
+        uint256 nextRailBefore = pay.nextRailId();
+        (bool success,) = address(account).call(
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, encodedAcceptances))
+        );
+        require(!success, "partial bundle accepted");
+        require(pay.nextRailId() == nextRailBefore, "rail creation not rolled back");
+        require(
+            account.getSubscription(firstId).state == BossTypes.SubscriptionState.NONE, "first subscription persisted"
+        );
+        require(
+            account.getSubscription(secondId).state == BossTypes.SubscriptionState.NONE, "second subscription persisted"
+        );
+
+        bytes32 bundleId = keccak256(
+            abi.encode(
+                "FILECOIN_BOSS_BUNDLE_V1",
+                address(this),
+                address(account),
+                BossHashes.hashResource(first.resource),
+                BUNDLE_MANIFEST,
+                uint64(1)
+            )
+        );
+        (bool bundleExists,) = address(bundles).call(abi.encodeCall(BossBundles.getBundle, (bundleId)));
+        require(!bundleExists, "bundle record persisted");
+    }
+
+    function testAcceptBundleRejectsNonAcceptanceSelectorsAndInvalidBounds() public {
+        bytes[] memory invalidSelector = new bytes[](1);
+        invalidSelector[0] = abi.encodeCall(BossAccount.pause, (bytes32(0)));
+        (bool selectorAccepted,) = address(account).call(
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, invalidSelector))
+        );
+        require(!selectorAccepted, "non-acceptance selector executed");
+
+        bytes[] memory empty = new bytes[](0);
+        (bool emptyAccepted,) = address(account).call(
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, empty))
+        );
+        require(!emptyAccepted, "empty bundle accepted");
+
+        bytes[] memory oversized = new bytes[](bundles.MAX_COMPONENTS() + 1);
+        (bool oversizedAccepted,) = address(account).call(
+            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, oversized))
+        );
+        require(!oversizedAccepted, "oversized bundle accepted");
     }
 
     function testDisabledAcceptedPricingAdapterRemainsUsable() public {
@@ -446,6 +579,12 @@ contract BossUsageClaimsTest {
             accessGrantHash: bytes32(0)
         });
         input.providerSignature = _signOffer(offer);
+    }
+
+    function _subscriptionId(BossTypes.AcceptanceInput memory input) private view returns (bytes32) {
+        return BossHashes.deriveSubscriptionId(
+            address(account), BossHashes.hashServiceOffer(input.offer), BossHashes.hashResource(input.resource)
+        );
     }
 
     function _claim(uint256 nonce, uint64 fromEpoch, uint64 toEpoch, uint256 units)

@@ -14,42 +14,114 @@
     "contracts"
   ],
   "properties": {
-    "schemaVersion": {"const": 1},
-    "network": {"type": "string", "minLength": 1},
-    "chainId": {"type": "integer", "minimum": 1},
-    "protocolCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "accountCreationCodeHash": {"$ref": "#/$defs/hash"},
-    "deploymentBlock": {"type": "integer", "minimum": 0},
+    "schemaVersion": {
+      "const": 1
+    },
+    "network": {
+      "type": "string",
+      "minLength": 1
+    },
+    "chainId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "protocolCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "accountCreationCodeHash": {
+      "$ref": "#/$defs/hash"
+    },
+    "deploymentBlock": {
+      "type": "integer",
+      "minimum": 0
+    },
     "dependencies": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["filecoinPay", "pdpVerifier", "fwssService", "fwssStateView", "token"],
+      "required": [
+        "filecoinPay",
+        "pdpVerifier",
+        "fwssService",
+        "fwssStateView",
+        "token"
+      ],
       "properties": {
-        "filecoinPay": {"$ref": "#/$defs/address"},
-        "pdpVerifier": {"$ref": "#/$defs/address"},
-        "fwssService": {"$ref": "#/$defs/address"},
-        "fwssStateView": {"$ref": "#/$defs/address"},
-        "token": {"$ref": "#/$defs/address"}
+        "filecoinPay": {
+          "$ref": "#/$defs/address"
+        },
+        "pdpVerifier": {
+          "$ref": "#/$defs/address"
+        },
+        "fwssService": {
+          "$ref": "#/$defs/address"
+        },
+        "fwssStateView": {
+          "$ref": "#/$defs/address"
+        },
+        "token": {
+          "$ref": "#/$defs/address"
+        }
       }
     },
     "contracts": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": {"$ref": "#/$defs/deployment"}
+      "required": [
+        "BossFactory",
+        "BossStateView",
+        "BossBundles"
+      ],
+      "propertyNames": {
+        "enum": [
+          "BossFactory",
+          "BossServiceRegistry",
+          "BossAdapterRegistry",
+          "BossBundles",
+          "BossStateView",
+          "FlatRateAdapter",
+          "PDPCapacityAdapter",
+          "CappedMeteredAdapter",
+          "FWSSPDPResourceAdapter"
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/deployment"
+      }
     }
   },
   "$defs": {
-    "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
-    "hash": {"type": "string", "pattern": "^0x[0-9a-fA-F]{64}$"},
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
     "deployment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["address", "runtimeCodeHash", "deploymentTxHash", "deploymentBlock"],
+      "required": [
+        "address",
+        "runtimeCodeHash",
+        "deploymentTxHash",
+        "deploymentBlock"
+      ],
       "properties": {
-        "address": {"$ref": "#/$defs/address"},
-        "runtimeCodeHash": {"$ref": "#/$defs/hash"},
-        "deploymentTxHash": {"$ref": "#/$defs/hash"},
-        "deploymentBlock": {"type": "integer", "minimum": 0}
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "runtimeCodeHash": {
+          "$ref": "#/$defs/hash"
+        },
+        "deploymentTxHash": {
+          "$ref": "#/$defs/hash"
+        },
+        "deploymentBlock": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     }
   }

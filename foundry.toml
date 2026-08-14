@@ -7,7 +7,7 @@ libs = ["lib"]
 cache_path = "cache"
 solc = "0.8.30"
 optimizer = true
-optimizer_runs = 200
+optimizer_runs = 1
 via_ir = true
 fs_permissions = [{ access = "read", path = "./test/vectors" }]
 remappings = [
@@ -17,3 +17,5 @@ remappings = [
     "forge-std/=lib/filecoin-pay/lib/forge-std/src/",
     "@prb-math/=lib/filecoin-pay/lib/prb-math/src/",
 ]
+bytecode_hash = "none"
+cbor_metadata = false

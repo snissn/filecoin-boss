@@ -198,6 +198,15 @@ library BossTypes {
         uint64 version;
     }
 
+    function isPinnedAdapter(AdapterRecord memory record, address adapter, AdapterKind kind)
+        internal
+        view
+        returns (bool)
+    {
+        return record.kind == kind && record.interfaceVersion == 1 && record.codeHash != bytes32(0)
+            && adapter.code.length != 0 && adapter.codehash == record.codeHash;
+    }
+
     function isUnlimitedCap(uint256 cap) internal pure returns (bool) {
         return cap == type(uint256).max;
     }

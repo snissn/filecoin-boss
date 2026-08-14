@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BossBundles} from "../../src/BossBundles.sol";
-import {BossTypes} from "../../src/libraries/BossTypes.sol";
+import {MockBundleAccount} from "../mocks/MockBundleAccount.sol";
 
 interface VmEventLogs {
     struct Log {
@@ -15,30 +15,6 @@ interface VmEventLogs {
     function getRecordedLogs() external returns (Log[] memory logs);
 }
 
-contract EventBundleAccount {
-    address public immutable owner;
-    mapping(bytes32 => BossTypes.Subscription) private _subscriptions;
-
-    constructor(address owner_) {
-        owner = owner_;
-    }
-
-    function setSubscription(bytes32 subscriptionId, bytes32 resourceKey, uint256 railId) external {
-        BossTypes.Subscription storage subscription = _subscriptions[subscriptionId];
-        subscription.resourceKey = resourceKey;
-        subscription.railId = railId;
-        subscription.state = BossTypes.SubscriptionState.ACTIVE;
-    }
-
-    function getSubscription(bytes32 subscriptionId)
-        external
-        view
-        returns (BossTypes.Subscription memory subscription)
-    {
-        return _subscriptions[subscriptionId];
-    }
-}
-
 contract EventReconstructionTest {
     VmEventLogs private constant VM = VmEventLogs(address(uint160(uint256(keccak256("hevm cheat code")))));
 
@@ -49,7 +25,7 @@ contract EventReconstructionTest {
 
     function testBundleCanBeReconstructedFromEventsInOrder() public {
         BossBundles bundles = new BossBundles();
-        EventBundleAccount account = new EventBundleAccount(address(this));
+        MockBundleAccount account = new MockBundleAccount(address(this));
         account.setSubscription(SUBSCRIPTION_A, RESOURCE, 1);
         account.setSubscription(SUBSCRIPTION_B, RESOURCE, 2);
 
@@ -65,6 +41,8 @@ contract EventReconstructionTest {
         bytes32 createdSignature = keccak256("BundleCreated(bytes32,address,address,bytes32,bytes32,uint64,uint256)");
         bytes32[] memory reconstructed = new bytes32[](2);
         uint256 componentsSeen;
+        uint256 lastComponentLogIndex;
+        uint256 createdLogIndex;
         bool createdSeen;
 
         for (uint256 i; i < logs.length; ++i) {
@@ -74,7 +52,9 @@ contract EventReconstructionTest {
                 require(logs[i].topics[1] == bundleId, "component bundle");
                 uint256 index = abi.decode(logs[i].data, (uint256));
                 require(index < reconstructed.length, "component index");
+                require(index == componentsSeen, "component order");
                 reconstructed[index] = logs[i].topics[2];
+                lastComponentLogIndex = i;
                 ++componentsSeen;
             } else if (logs[i].topics[0] == createdSignature) {
                 require(logs[i].topics.length == 4, "created topics");
@@ -87,12 +67,14 @@ contract EventReconstructionTest {
                 require(manifestHash == MANIFEST, "created manifest");
                 require(version == 3, "created version");
                 require(componentCount == 2, "created count");
+                createdLogIndex = i;
                 createdSeen = true;
             }
         }
 
         require(createdSeen, "missing created event");
         require(componentsSeen == 2, "missing component event");
+        require(createdLogIndex > lastComponentLogIndex, "created event order");
         require(reconstructed[0] == SUBSCRIPTION_A, "reconstructed component zero");
         require(reconstructed[1] == SUBSCRIPTION_B, "reconstructed component one");
 

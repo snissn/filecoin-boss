@@ -4,13 +4,42 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 
+source_commit=${SOURCE_COMMIT:-}
+if [[ -z "$source_commit" ]]; then
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "working tree is not clean; commit the source or set SOURCE_COMMIT explicitly" >&2
+    exit 1
+  fi
+  source_commit=$(git rev-parse HEAD)
+fi
+if [[ ! "$source_commit" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "invalid SOURCE_COMMIT: $source_commit" >&2
+  exit 1
+fi
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git cat-file -e "${source_commit}^{commit}" 2>/dev/null || {
+    echo "SOURCE_COMMIT is not available in this repository: $source_commit" >&2
+    exit 1
+  }
+fi
+
 forge build >/dev/null
+forge_config=$(forge config --json)
+compiler=$(jq -c '{
+  solcVersion: .solc,
+  evmVersion: .evm_version,
+  optimizer: {enabled: .optimizer, runs: .optimizer_runs},
+  viaIR: .via_ir,
+  bytecodeHash: .bytecode_hash,
+  cborMetadata: .cbor_metadata
+}' <<<"$forge_config")
 
 ABI_DIR=packages/contracts/abi
 BYTECODE_DIR=packages/contracts/bytecode
 rm -rf "$ABI_DIR" "$BYTECODE_DIR"
 mkdir -p "$ABI_DIR" "$BYTECODE_DIR"
 
+# This is the sole declaration of the published contract set.
 contracts=(
   BossAccount
   BossFactory
@@ -26,7 +55,10 @@ contracts=(
 
 for contract in "${contracts[@]}"; do
   artifact="out/${contract}.sol/${contract}.json"
-  test -f "$artifact"
+  if [[ ! -f "$artifact" ]]; then
+    echo "missing Foundry artifact: $artifact" >&2
+    exit 1
+  fi
   tmp=$(mktemp)
   jq -S '.abi' "$artifact" > "$tmp"
   mv "$tmp" "$ABI_DIR/${contract}.json"
@@ -41,20 +73,28 @@ esac
 printf '%s\n' "$creation_code" > "$BYTECODE_DIR/BossAccount.creation.hex"
 creation_hash=$(cast keccak "$creation_code")
 
-jq -S -n --arg creationHash "$creation_hash" '
+manifest_tmp=$(mktemp)
+jq -S -n \
+  --arg sourceCommit "$source_commit" \
+  --arg creationHash "$creation_hash" \
+  --argjson compiler "$compiler" \
+  --args '
 {
   schemaVersion: 1,
+  sourceCommit: $sourceCommit,
+  protocolCommit: $sourceCommit,
+  compiler: $compiler,
+  accountCreationCodeHash: $creationHash,
   contracts: [
-    {name: "BossAccount", abi: "abi/BossAccount.json", creationCode: "bytecode/BossAccount.creation.hex", creationCodeHash: $creationHash},
-    {name: "BossFactory", abi: "abi/BossFactory.json"},
-    {name: "BossServiceRegistry", abi: "abi/BossServiceRegistry.json"},
-    {name: "BossAdapterRegistry", abi: "abi/BossAdapterRegistry.json"},
-    {name: "BossBundles", abi: "abi/BossBundles.json"},
-    {name: "BossStateView", abi: "abi/BossStateView.json"},
-    {name: "FlatRateAdapter", abi: "abi/FlatRateAdapter.json"},
-    {name: "PDPCapacityAdapter", abi: "abi/PDPCapacityAdapter.json"},
-    {name: "CappedMeteredAdapter", abi: "abi/CappedMeteredAdapter.json"},
-    {name: "FWSSPDPResourceAdapter", abi: "abi/FWSSPDPResourceAdapter.json"}
+    $ARGS.positional[] as $name
+    | {name: $name, abi: ("abi/" + $name + ".json")}
+    | if $name == "BossAccount" then
+        . + {
+          creationCode: "bytecode/BossAccount.creation.hex",
+          creationCodeHash: $creationHash
+        }
+      else . end
   ]
 }
-' > packages/contracts/artifacts.json
+' "${contracts[@]}" > "$manifest_tmp"
+mv "$manifest_tmp" packages/contracts/artifacts.json

@@ -1,0 +1,46 @@
+name: A8 exact source export
+
+on:
+  push:
+    branches:
+      - gpt56/issue-10-bundles-state-view-artifacts
+    paths:
+      - .github/workflows/a8-exact-source-export.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a8-exact-source-export
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Package exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -p /tmp/a8-exact-source
+          tar --exclude=.git --exclude=out --exclude=cache \
+            -czf /tmp/a8-exact-source/repository.tar.gz .
+          git rev-parse HEAD > /tmp/a8-exact-source/source-head.txt
+          git -C lib/filecoin-pay rev-parse HEAD > /tmp/a8-exact-source/filecoin-pay-head.txt
+          cd /tmp/a8-exact-source
+          sha256sum repository.tar.gz source-head.txt filecoin-pay-head.txt > SHA256SUMS
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: a8-exact-source
+          path: /tmp/a8-exact-source/
+          if-no-files-found: error
+          retention-days: 1

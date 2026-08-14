@@ -42,18 +42,14 @@ jobs:
             exit 1
           fi
 
-          cat .github/a8-final-repair-00.b64 \
-              .github/a8-final-repair-01.b64 \
-              .github/a8-final-repair-02.b64 \
+          cat .github/a8-final-repair-part-*.b64 \
             | base64 -d \
             | gzip -dc > /tmp/a8-final-repair.patch
           echo "42a84fd549856ccaa67a53b4087d521d9909f620da623bbd16b587f4df281ede  /tmp/a8-final-repair.patch" \
             | sha256sum -c -
           git apply --check /tmp/a8-final-repair.patch
           git apply /tmp/a8-final-repair.patch
-          rm -f .github/a8-final-repair-00.b64 \
-                .github/a8-final-repair-01.b64 \
-                .github/a8-final-repair-02.b64
+          rm -f .github/a8-final-repair-part-*.b64
           git diff --check
 
       - name: Qualify exact source tree

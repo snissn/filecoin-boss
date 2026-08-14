@@ -55,7 +55,7 @@
       "name": "FWSSPDPResourceAdapter"
     }
   ],
-  "protocolCommit": "a0cd7fb6cf6a35203dd353519202c8588eb2d35b",
+  "protocolCommit": "25438fe41398245a14caeb34ba656bbe7178ac40",
   "schemaVersion": 1,
-  "sourceCommit": "a0cd7fb6cf6a35203dd353519202c8588eb2d35b"
+  "sourceCommit": "25438fe41398245a14caeb34ba656bbe7178ac40"
 }

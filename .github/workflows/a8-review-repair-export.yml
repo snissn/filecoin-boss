@@ -41,6 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/a8-review-repair.py
+          python3 .github/a8-review-margin-fix.py
           forge fmt
           forge fmt --check
           forge build --sizes

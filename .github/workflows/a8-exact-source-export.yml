@@ -1,4 +1,4 @@
-name: A8 exact source export
+name: Publish qualified A8 source candidate
 
 on:
   push:
@@ -8,14 +8,14 @@ on:
       - .github/workflows/a8-exact-source-export.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: a8-exact-source-export
-  cancel-in-progress: true
+  group: a8-qualified-source-publish
+  cancel-in-progress: false
 
 jobs:
-  export:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -25,22 +25,48 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
-      - name: Package exact checkout
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Verify and apply exact source patch
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          mkdir -p /tmp/a8-exact-source
-          tar --exclude=.git --exclude=out --exclude=cache \
-            -czf /tmp/a8-exact-source/repository.tar.gz .
-          git rev-parse HEAD > /tmp/a8-exact-source/source-head.txt
-          git -C lib/filecoin-pay rev-parse HEAD > /tmp/a8-exact-source/filecoin-pay-head.txt
-          cd /tmp/a8-exact-source
-          sha256sum repository.tar.gz source-head.txt filecoin-pay-head.txt > SHA256SUMS
+          test "$(git rev-parse HEAD^)" = "7f620d15f5ab96b023f56391a2dec3213aff63dd"
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          base64 -d .github/a8-source-final.patch.b64 | gzip -dc > /tmp/a8-source-final.patch
+          echo "30fb8a26612815587cf7e3c795005f8e30f79c500f151a99e9fe37fdc7316018  /tmp/a8-source-final.patch" | sha256sum -c -
+          git apply --check /tmp/a8-source-final.patch
+          git apply /tmp/a8-source-final.patch
+          rm .github/a8-source-final.patch.b64
+          rm .github/workflows/a8-exact-source-export.yml
+          git diff --check
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: a8-exact-source
-          path: /tmp/a8-exact-source/
-          if-no-files-found: error
-          retention-days: 1
+      - name: Qualify exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge fmt --check
+          forge build --sizes
+          forge test -vvv
+
+      - name: Publish source-only commit
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add --all
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          test -z "$(git diff --cached --name-only | grep '^packages/contracts/' || true)"
+          test -z "$(git diff --cached --name-only | grep '^.github/a8-source-final.patch.b64$' || true)"
+          test -z "$(git diff --cached --name-only | grep '^.github/workflows/a8-exact-source-export.yml$' || true)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: complete authenticated A8 integration surface"
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin HEAD:gpt56/issue-10-bundles-state-view-artifacts

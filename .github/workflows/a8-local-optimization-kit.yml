@@ -30,7 +30,7 @@ jobs:
           version: v1.3.5
           cache: true
 
-      - name: Verify and apply bounded source patch
+      - name: Verify and apply bounded source patches
         shell: bash
         run: |
           set -euo pipefail
@@ -49,7 +49,16 @@ jobs:
             | sha256sum -c -
           git apply --check /tmp/a8-final-repair.patch
           git apply /tmp/a8-final-repair.patch
-          rm -f .github/a8-final-repair-part-*.b64
+
+          cat .github/a8-fixture-size-part-*.b64 \
+            | base64 -d \
+            | gzip -dc > /tmp/a8-fixture-size.patch
+          echo "ea6d8802c21b2faac9e12b7f5bc8a20722dbf31e61f64353c81b125b767d81b4  /tmp/a8-fixture-size.patch" \
+            | sha256sum -c -
+          git apply --check /tmp/a8-fixture-size.patch
+          git apply /tmp/a8-fixture-size.patch
+
+          rm -f .github/a8-final-repair-part-*.b64 .github/a8-fixture-size-part-*.b64
           git diff --check
 
       - name: Qualify exact source tree

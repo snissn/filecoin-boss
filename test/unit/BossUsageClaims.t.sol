@@ -8,6 +8,7 @@ import {BossAdapterRegistry} from "../../src/BossAdapterRegistry.sol";
 import {BossServiceRegistry} from "../../src/BossServiceRegistry.sol";
 import {CappedMeteredAdapter} from "../../src/adapters/pricing/CappedMeteredAdapter.sol";
 import {IBossResourceAdapter} from "../../src/interfaces/IBossResourceAdapter.sol";
+import {IBossAccountEvents} from "../../src/interfaces/IBossAccountEvents.sol";
 import {IFilecoinPayV1, IFilecoinPayValidator} from "../../src/interfaces/IFilecoinPayV1.sol";
 import {BossHashes} from "../../src/libraries/BossHashes.sol";
 import {BossTypes} from "../../src/libraries/BossTypes.sol";
@@ -176,6 +177,30 @@ contract MockMeteredFilecoinPayV1 is IFilecoinPayV1 {
 }
 
 contract BossUsageClaimsTest is RevertAssertions {
+    struct AcceptedEventData {
+        bytes32 resourceKey;
+        uint256 railId;
+        address beneficiary;
+        address token;
+        uint256 initialFixedBudget;
+        address provider;
+        address reporter;
+        address resourceAdapter;
+        address pricingAdapter;
+        bytes32 resourceDataHash;
+        bytes32 pricingDataHash;
+        bytes32 accessGrantHash;
+        uint256 policyWord;
+        uint256 maxRatePerEpoch;
+        uint256 maxFixedLockup;
+        uint256 maxSingleCharge;
+        uint256 maxChargePerWindow;
+        uint256 lifetimeCapGross;
+        uint256 capEpochs;
+        uint256 acceptedRatePerEpoch;
+        uint256 acceptanceEpochs;
+    }
+
     VmUsageClaims private constant vm = VmUsageClaims(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 private constant TIB = 1 << 40;
@@ -234,7 +259,7 @@ contract BossUsageClaimsTest is RevertAssertions {
                 address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1, accountCreationCode
             )
         );
-        bundles = new BossBundles(address(bundleFactory));
+        bundles = BossBundles(bundleFactory.bundles());
         pay.setOperatorApproval(address(0), address(this), address(account), true);
     }
 
@@ -380,6 +405,52 @@ contract BossUsageClaimsTest is RevertAssertions {
         _mustFailClaim(subscriptionId, claim, _signClaim(subscriptionId, claim));
     }
 
+    function testSubscriptionAcceptedEventCarriesCompleteReconstructableTerms() public {
+        BossTypes.AcceptanceInput memory input = _input(3 ether, 20 ether, 10 ether, 5 ether, 30);
+        vm.recordLogs();
+        (bytes32 subscriptionId, uint256 railId) = account.acceptOffer(input);
+        VmUsageClaims.Log[] memory logs = vm.getRecordedLogs();
+
+        bool observed;
+        for (uint256 i; i < logs.length; ++i) {
+            if (
+                logs[i].emitter != address(account) || logs[i].topics.length != 4
+                    || logs[i].topics[0] != IBossAccountEvents.SubscriptionAccepted.selector
+            ) continue;
+
+            require(logs[i].topics[1] == subscriptionId, "accepted subscription");
+            require(address(uint160(uint256(logs[i].topics[2]))) == address(account), "accepted account");
+            require(logs[i].topics[3] == BossHashes.hashServiceOffer(input.offer), "accepted offer");
+            AcceptedEventData memory data = abi.decode(logs[i].data, (AcceptedEventData));
+            require(data.resourceKey == BossHashes.hashResource(input.resource), "accepted resource");
+            require(data.railId == railId, "accepted rail");
+            require(data.beneficiary == input.offer.beneficiary && data.token == input.offer.token, "accepted payment");
+            require(data.initialFixedBudget == input.initialFixedBudget, "accepted budget");
+            require(data.provider == input.offer.provider && data.reporter == input.offer.reporter, "accepted actors");
+            require(
+                data.resourceAdapter == input.offer.resourceAdapter && data.pricingAdapter == input.offer.pricingAdapter,
+                "accepted adapters"
+            );
+            require(data.resourceDataHash == keccak256(input.resourceData), "accepted resource data");
+            require(data.pricingDataHash == keccak256(input.pricingData), "accepted pricing data");
+            require(data.accessGrantHash == input.accessGrantHash, "accepted access grant");
+            require(data.policyWord == _policyWord(input.offer), "accepted policy");
+            require(data.maxRatePerEpoch == input.caps.maxRatePerEpoch, "accepted rate cap");
+            require(data.maxFixedLockup == input.caps.maxFixedLockup, "accepted lockup cap");
+            require(data.maxSingleCharge == input.caps.maxSingleCharge, "accepted single cap");
+            require(data.maxChargePerWindow == input.caps.maxChargePerWindow, "accepted window cap");
+            require(data.lifetimeCapGross == input.caps.lifetimeCapGross, "accepted lifetime cap");
+            require(data.capEpochs == _capEpochs(input.caps), "accepted cap epochs");
+            require(data.acceptedRatePerEpoch == 0, "accepted metered rate");
+            require(
+                data.acceptanceEpochs == uint256(block.number) | (uint256(input.caps.notAfterEpoch) << 64),
+                "accepted epochs"
+            );
+            observed = true;
+        }
+        require(observed, "subscription accepted event missing");
+    }
+
     function testUsageClaimEventCarriesCompleteReconstructablePreimage() public {
         (bytes32 subscriptionId,) = account.acceptOffer(_input(3 ether, 20 ether, 10 ether, 5 ether, 31));
         vm.roll(120);
@@ -417,9 +488,11 @@ contract BossUsageClaimsTest is RevertAssertions {
         encodedAcceptances[0] = abi.encodeCall(BossAccount.acceptOffer, (first));
         encodedAcceptances[1] = abi.encodeCall(BossAccount.acceptOffer, (second));
 
-        (bytes32 bundleId, bytes32[] memory subscriptionIds) =
-            account.acceptBundle(address(bundles), BUNDLE_MANIFEST, 1, encodedAcceptances);
-        require(subscriptionIds.length == 2 && subscriptionIds[0] != subscriptionIds[1], "bundle subscriptions");
+        bytes32[] memory subscriptionIds = new bytes32[](2);
+        subscriptionIds[0] = _subscriptionId(first);
+        subscriptionIds[1] = _subscriptionId(second);
+        bytes32 bundleId = account.acceptBundle(BUNDLE_MANIFEST, 1, encodedAcceptances);
+        require(subscriptionIds[0] != subscriptionIds[1], "bundle subscriptions");
         (bytes32 indexedFirst, uint256 subscriptionCount) = account.subscriptionIndex(0);
         (bytes32 indexedSecond,) = account.subscriptionIndex(1);
         require(subscriptionCount == 2, "subscription count");
@@ -452,9 +525,8 @@ contract BossUsageClaimsTest is RevertAssertions {
         bytes32 firstId = _subscriptionId(first);
         bytes32 secondId = _subscriptionId(second);
         uint256 nextRailBefore = pay.nextRailId();
-        (bool success,) = address(account).call(
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, encodedAcceptances))
-        );
+        (bool success,) =
+            address(account).call(abi.encodeCall(BossAccount.acceptBundle, (BUNDLE_MANIFEST, 1, encodedAcceptances)));
         require(!success, "partial bundle accepted");
         require(pay.nextRailId() == nextRailBefore, "rail creation not rolled back");
         require(
@@ -483,21 +555,21 @@ contract BossUsageClaimsTest is RevertAssertions {
         invalidSelector[0] = abi.encodeCall(BossAccount.pause, (bytes32(0)));
         _mustRevertWith(
             address(account),
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, invalidSelector)),
+            abi.encodeCall(BossAccount.acceptBundle, (BUNDLE_MANIFEST, 1, invalidSelector)),
             BossAccount.InvalidOffer.selector
         );
 
         bytes[] memory empty = new bytes[](0);
         _mustRevertWith(
             address(account),
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, empty)),
+            abi.encodeCall(BossAccount.acceptBundle, (BUNDLE_MANIFEST, 1, empty)),
             BossAccount.InvalidBundleBatch.selector
         );
 
         bytes[] memory oversized = new bytes[](bundles.MAX_COMPONENTS() + 1);
         _mustRevertWith(
             address(account),
-            abi.encodeCall(BossAccount.acceptBundle, (address(bundles), BUNDLE_MANIFEST, 1, oversized)),
+            abi.encodeCall(BossAccount.acceptBundle, (BUNDLE_MANIFEST, 1, oversized)),
             BossAccount.InvalidBundleBatch.selector
         );
     }
@@ -603,6 +675,17 @@ contract BossUsageClaimsTest is RevertAssertions {
             accessGrantHash: bytes32(0)
         });
         input.providerSignature = _signOffer(offer);
+    }
+
+    function _policyWord(BossTypes.ServiceOffer memory offer) private pure returns (uint256) {
+        return uint256(offer.billingKind) | (uint256(offer.assuranceKind) << 8) | (uint256(offer.dependencyKind) << 16)
+            | (uint256(offer.activationKind) << 24) | (uint256(offer.terminationBillingKind) << 32)
+            | (uint256(offer.pauseAllowed ? 1 : 0) << 40);
+    }
+
+    function _capEpochs(BossTypes.CapPolicy memory caps) private pure returns (uint256) {
+        return uint256(caps.chargeWindowEpochs) | (uint256(caps.notAfterEpoch) << 64)
+            | (uint256(caps.maxLockupPeriod) << 128);
     }
 
     function _subscriptionId(BossTypes.AcceptanceInput memory input) private view returns (bytes32) {

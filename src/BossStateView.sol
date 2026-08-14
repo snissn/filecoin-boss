@@ -192,7 +192,10 @@ contract BossStateView {
 
         uint256 windowSize = subscription_.caps.chargeWindowEpochs;
         if (
-            windowSize == 0 || usageClaim.claimId == bytes32(0) || usageClaim.toEpoch <= usageClaim.fromEpoch
+            subscription_.billingKind != BossTypes.BillingKind.METERED_FIXED_LOCKUP
+                || subscription_.state != BossTypes.SubscriptionState.ACTIVE
+                || (subscription_.caps.notAfterEpoch != 0 && block.number >= subscription_.caps.notAfterEpoch)
+                || windowSize == 0 || usageClaim.claimId == bytes32(0) || usageClaim.toEpoch <= usageClaim.fromEpoch
                 || usageClaim.toEpoch > block.number || usageClaim.fromEpoch < subscription_.acceptedEpoch
                 || usageClaim.fromEpoch < subscription_.activatedEpoch
                 || usageClaim.fromEpoch < subscription_.lastUsageToEpoch
@@ -227,8 +230,18 @@ contract BossStateView {
         snapshot.remainingLifetimeGross =
             BossTypes.remainingCap(snapshot.subscription.caps.lifetimeCapGross, snapshot.grossSpent);
         if (snapshot.subscription.state == BossTypes.SubscriptionState.ENDED) return snapshot;
-        snapshot.rail = IFilecoinPayV1(pay).getRail(snapshot.subscription.railId);
-        snapshot.railRead = true;
+        try IFilecoinPayV1(pay).getRail(snapshot.subscription.railId) returns (IFilecoinPayV1.RailView memory rail) {
+            snapshot.rail = rail;
+            snapshot.railRead = true;
+        } catch (bytes memory reason) {
+            if (
+                snapshot.subscription.state == BossTypes.SubscriptionState.TERMINATING
+                    && snapshot.subscription.payEndEpoch != 0 && block.number >= snapshot.subscription.payEndEpoch
+            ) return snapshot;
+            assembly ("memory-safe") {
+                revert(add(reason, 0x20), mload(reason))
+            }
+        }
         snapshot.railAssociationValid = account_.subscriptionForRail(snapshot.subscription.railId) == subscriptionId
             && snapshot.rail.from == payer_ && snapshot.rail.to == snapshot.subscription.beneficiary
             && snapshot.rail.operator == accountAddress && snapshot.rail.validator == accountAddress

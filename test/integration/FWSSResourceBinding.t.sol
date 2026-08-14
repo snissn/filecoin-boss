@@ -60,7 +60,9 @@ contract FWSSResourceBindingTest {
             address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://flat-pricing"
         );
 
-        account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
+        account = new BossAccount(
+            address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1, address(this)
+        );
         pay.setOperatorApproval(address(0), address(this), address(account), true);
         _setState(address(this));
     }

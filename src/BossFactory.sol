@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BossAccount} from "./BossAccount.sol";
+import {BossBundles} from "./BossBundles.sol";
 
 /// @notice Deterministically deploys one immutable Boss account per payer/configuration.
 contract BossFactory {
@@ -25,10 +26,12 @@ contract BossFactory {
     );
 
     bytes32 public immutable accountCreationCodeHash;
+    address public immutable bundles;
     mapping(bytes32 accountKey_ => address account) public accountFor;
 
     constructor() {
         accountCreationCodeHash = keccak256(type(BossAccount).creationCode);
+        bundles = address(new BossBundles(address(this)));
     }
 
     function accountKey(
@@ -73,7 +76,8 @@ contract BossFactory {
         if (account != address(0)) return account;
 
         bytes memory initCode = abi.encodePacked(
-            accountCreationCode, abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
+            accountCreationCode,
+            abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion, bundles)
         );
         address predicted = _predict(key, keccak256(initCode));
         assembly ("memory-safe") {
@@ -96,7 +100,8 @@ contract BossFactory {
     ) private view returns (bytes memory initCode) {
         _requireCanonicalCreationCode(accountCreationCode);
         initCode = abi.encodePacked(
-            accountCreationCode, abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion)
+            accountCreationCode,
+            abi.encode(owner, filecoinPay, serviceRegistry, adapterRegistry, accountVersion, bundles)
         );
     }
 

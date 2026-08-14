@@ -270,6 +270,32 @@ contract BossStateViewTest is RevertAssertions {
         require(!snapshots[1].exists, "missing batch");
     }
 
+    function testFinalizedTerminatingRailDoesNotBreakSingleBatchOrPageAfterPayEnd() public {
+        VM.roll(500);
+        (MockStatePay pay, MockStateAccount account, BossStateView stateView) = _fixture();
+        BossTypes.Subscription memory terminating = _activeSubscription(14);
+        terminating.state = BossTypes.SubscriptionState.TERMINATING;
+        terminating.payEndEpoch = 500;
+        account.setSubscription(SUBSCRIPTION, terminating, true);
+        pay.deleteRail(terminating.railId);
+
+        BossStateView.SubscriptionSnapshot memory snapshot = stateView.subscription(address(account), SUBSCRIPTION);
+        require(snapshot.exists && !snapshot.railRead && !snapshot.railAssociationValid, "terminating single");
+
+        bytes32[] memory ids = new bytes32[](1);
+        ids[0] = SUBSCRIPTION;
+        BossStateView.SubscriptionSnapshot[] memory batch = stateView.subscriptions(address(account), ids);
+        BossStateView.SubscriptionSnapshot[] memory page = stateView.subscriptionPage(address(account), 0, 1);
+        require(batch.length == 1 && batch[0].exists && !batch[0].railRead, "terminating batch");
+        require(page.length == 1 && page[0].exists && !page[0].railRead, "terminating page");
+
+        terminating.payEndEpoch = 501;
+        account.setSubscription(SUBSCRIPTION, terminating, true);
+        (bool beforeEnd,) =
+            address(stateView).call(abi.encodeCall(BossStateView.subscription, (address(account), SUBSCRIPTION)));
+        require(!beforeEnd, "missing pre-end rail tolerated");
+    }
+
     function testBatchIsBoundedAndPreservesMissingEntries() public {
         (MockStatePay pay, MockStateAccount account, BossStateView stateView) = _fixture();
         BossTypes.Subscription memory subscription = _activeSubscription(1);
@@ -374,6 +400,29 @@ contract BossStateViewTest is RevertAssertions {
         invalid.fromEpoch = 119;
         invalid.toEpoch = 120;
         require(!stateView.claim(address(account), SUBSCRIPTION, invalid).windowValid, "overlap claim");
+
+        subscription.billingKind = BossTypes.BillingKind.STREAM_FLAT;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "non-metered claim");
+
+        subscription.billingKind = BossTypes.BillingKind.METERED_FIXED_LOCKUP;
+        subscription.state = BossTypes.SubscriptionState.PAUSED;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "paused claim");
+        subscription.state = BossTypes.SubscriptionState.TERMINATING;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "terminating claim");
+        subscription.state = BossTypes.SubscriptionState.ENDED;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "ended claim");
+        subscription.state = BossTypes.SubscriptionState.EXHAUSTED;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "exhausted claim");
+
+        subscription.state = BossTypes.SubscriptionState.ACTIVE;
+        subscription.caps.notAfterEpoch = 500;
+        account.setSubscription(SUBSCRIPTION, subscription, false);
+        require(!stateView.claim(address(account), SUBSCRIPTION, candidate).windowValid, "expired claim");
     }
 
     function testRequotesPinnedResourceAndPricingPayloadWithoutSigner() public {

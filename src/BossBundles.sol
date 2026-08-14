@@ -72,8 +72,10 @@ contract BossBundles {
     mapping(bytes32 bundleId => StoredBundle bundle) private _bundles;
     bool private _creating;
 
+    /// @dev `BossFactory` deploys this contract from its constructor, while its own runtime code is not installed yet.
+    /// Account registration is authenticated against the completed factory in `_requireAccount`.
     constructor(address factory_) {
-        if (factory_ == address(0) || factory_.code.length == 0) revert InvalidFactory();
+        if (factory_ == address(0)) revert InvalidFactory();
         factory = factory_;
     }
 

@@ -110,8 +110,14 @@ library BossHashes {
         return keccak256(abi.encode(EIP712_DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, chainId, verifyingContract));
     }
 
-    function hashTypedData(bytes32 domainSeparator_, bytes32 structHash) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("\x19\x01", domainSeparator_, structHash));
+    function hashTypedData(bytes32 domainSeparator_, bytes32 structHash) internal pure returns (bytes32 digest) {
+        assembly ("memory-safe") {
+            let pointer := mload(0x40)
+            mstore(pointer, shl(240, 0x1901))
+            mstore(add(pointer, 0x02), domainSeparator_)
+            mstore(add(pointer, 0x22), structHash)
+            digest := keccak256(pointer, 0x42)
+        }
     }
 
     function deriveSubscriptionId(address account, bytes32 offerHash, bytes32 resourceKey)

@@ -114,17 +114,7 @@ contract A8LifecycleAccount is IBossAccountEvents {
 
     function emitFlatLifecycle(bytes32 subscriptionId) external {
         BossTypes.Subscription memory subscription = _subscriptions[subscriptionId];
-        emit SubscriptionAccepted(
-            subscriptionId,
-            address(this),
-            subscription.offerHash,
-            subscription.resourceKey,
-            subscription.railId,
-            subscription.beneficiary,
-            subscription.token,
-            10,
-            0
-        );
+        _emitAccepted(subscriptionId, subscription, 10, 0, 0);
         emit SubscriptionActivated(subscriptionId, 100);
         emit SubscriptionPaused(subscriptionId, 110);
         emit SubscriptionResumed(subscriptionId, 115);
@@ -135,34 +125,14 @@ contract A8LifecycleAccount is IBossAccountEvents {
 
     function emitCapacityLifecycle(bytes32 subscriptionId, bytes32 statusHash) external {
         BossTypes.Subscription memory subscription = _subscriptions[subscriptionId];
-        emit SubscriptionAccepted(
-            subscriptionId,
-            address(this),
-            subscription.offerHash,
-            subscription.resourceKey,
-            subscription.railId,
-            subscription.beneficiary,
-            subscription.token,
-            10,
-            0
-        );
+        _emitAccepted(subscriptionId, subscription, 10, 0, 130);
         emit SubscriptionActivated(subscriptionId, 100);
         emit RateSynchronized(subscriptionId, 10, 20, 120, 150, statusHash);
     }
 
     function emitMeteredLifecycle(bytes32 subscriptionId, BossTypes.UsageClaim memory usageClaim) external {
         BossTypes.Subscription memory subscription = _subscriptions[subscriptionId];
-        emit SubscriptionAccepted(
-            subscriptionId,
-            address(this),
-            subscription.offerHash,
-            subscription.resourceKey,
-            subscription.railId,
-            subscription.beneficiary,
-            subscription.token,
-            0,
-            10 ether
-        );
+        _emitAccepted(subscriptionId, subscription, 0, 10 ether, 0);
         emit SubscriptionActivated(subscriptionId, 100);
         emit UsageClaimCharged(
             subscriptionId,
@@ -173,6 +143,76 @@ contract A8LifecycleAccount is IBossAccountEvents {
             5 ether,
             usageClaim.evidenceHash
         );
+    }
+
+    function _emitAccepted(
+        bytes32 subscriptionId,
+        BossTypes.Subscription memory subscription,
+        uint256 initialRate,
+        uint256 initialFixedBudget,
+        uint64 initialQuoteValidThrough
+    ) private {
+        bytes32 signature = IBossAccountEvents.SubscriptionAccepted.selector;
+        assembly ("memory-safe") {
+            let pointer := mload(0x40)
+            let caps := mload(add(subscription, 0x240))
+            let policyWord :=
+                or(
+                    mload(add(subscription, 0x180)),
+                    or(
+                        shl(8, mload(add(subscription, 0x1a0))),
+                        or(
+                            shl(16, mload(add(subscription, 0x1c0))),
+                            or(
+                                shl(24, mload(add(subscription, 0x1e0))),
+                                or(shl(32, mload(add(subscription, 0x200))), shl(40, mload(add(subscription, 0x220))))
+                            )
+                        )
+                    )
+                )
+            let capEpochs :=
+                or(mload(add(caps, 0xa0)), or(shl(64, mload(add(caps, 0xc0))), shl(128, mload(add(caps, 0xe0)))))
+            let acceptanceEpochs :=
+                or(
+                    mload(add(subscription, 0x2e0)),
+                    or(shl(64, initialQuoteValidThrough), shl(128, mload(add(subscription, 0x340))))
+                )
+
+            mstore(pointer, mload(add(subscription, 0x20)))
+            mstore(add(pointer, 0x20), mload(add(subscription, 0x160)))
+            mstore(add(pointer, 0x40), mload(add(subscription, 0xc0)))
+            mstore(add(pointer, 0x60), mload(add(subscription, 0x100)))
+            mstore(add(pointer, 0x80), initialFixedBudget)
+            mstore(add(pointer, 0xa0), mload(add(subscription, 0xa0)))
+            mstore(add(pointer, 0xc0), mload(add(subscription, 0xe0)))
+            mstore(add(pointer, 0xe0), mload(add(subscription, 0x120)))
+            mstore(add(pointer, 0x100), mload(add(subscription, 0x140)))
+            mstore(add(pointer, 0x120), mload(add(subscription, 0x40)))
+            mstore(add(pointer, 0x140), mload(add(subscription, 0x60)))
+            mstore(add(pointer, 0x160), mload(add(subscription, 0x80)))
+            mstore(add(pointer, 0x180), policyWord)
+            mstore(add(pointer, 0x1a0), mload(caps))
+            mstore(add(pointer, 0x1c0), mload(add(caps, 0x20)))
+            mstore(add(pointer, 0x1e0), mload(add(caps, 0x40)))
+            mstore(add(pointer, 0x200), mload(add(caps, 0x60)))
+            mstore(add(pointer, 0x220), mload(add(caps, 0x80)))
+            mstore(add(pointer, 0x240), capEpochs)
+            mstore(add(pointer, 0x260), initialRate)
+            mstore(add(pointer, 0x280), acceptanceEpochs)
+            mstore(0x40, add(pointer, 0x2a0))
+            log4(pointer, 0x2a0, signature, subscriptionId, address(), mload(subscription))
+        }
+    }
+
+    function _policyWord(BossTypes.Subscription memory subscription) private pure returns (uint256) {
+        return uint256(subscription.billingKind) | (uint256(subscription.assuranceKind) << 8)
+            | (uint256(subscription.dependencyKind) << 16) | (uint256(subscription.activationKind) << 24)
+            | (uint256(subscription.terminationBillingKind) << 32) | (uint256(subscription.pauseAllowed ? 1 : 0) << 40);
+    }
+
+    function _capEpochs(BossTypes.CapPolicy memory caps) private pure returns (uint256) {
+        return uint256(caps.chargeWindowEpochs) | (uint256(caps.notAfterEpoch) << 64)
+            | (uint256(caps.maxLockupPeriod) << 128);
     }
 }
 
@@ -246,7 +286,7 @@ contract A8LifecycleReconstructionTest {
         metered.acceptedEpoch = 100;
         metered.activatedEpoch = 100;
         metered.lastUsageToEpoch = 110;
-        metered.state = BossTypes.SubscriptionState.EXHAUSTED;
+        metered.state = BossTypes.SubscriptionState.ACTIVE;
 
         account.setSubscription(FLAT_ID, flat, true);
         account.setSubscription(CAPACITY_ID, capacity, true);
@@ -273,8 +313,7 @@ contract A8LifecycleReconstructionTest {
         account.emitMeteredLifecycle(METERED_ID, usageClaim);
         VmA8LifecycleLogs.Log[] memory logs = VM.getRecordedLogs();
 
-        bytes32 acceptedSignature =
-            keccak256("SubscriptionAccepted(bytes32,address,bytes32,bytes32,uint256,address,address,uint256,uint256)");
+        bytes32 acceptedSignature = IBossAccountEvents.SubscriptionAccepted.selector;
         bytes32 activatedSignature = keccak256("SubscriptionActivated(bytes32,uint64)");
         bytes32 rateSignature = keccak256("RateSynchronized(bytes32,uint256,uint256,uint64,uint64,bytes32)");
         bytes32 pausedSignature = keccak256("SubscriptionPaused(bytes32,uint64)");
@@ -304,25 +343,21 @@ contract A8LifecycleReconstructionTest {
             if (signature == acceptedSignature) {
                 require(logs[i].topics.length == 4, "accepted topics");
                 require(address(uint160(uint256(logs[i].topics[2]))) == address(account), "accepted account");
-                BossTypes.Subscription memory recorded = account.getSubscription(subscriptionId);
-                require(logs[i].topics[3] == recorded.offerHash, "accepted offer");
-                (
-                    bytes32 resourceKey,
-                    uint256 railId,
-                    address beneficiary,
-                    address token,
-                    uint256 initialRate,
-                    uint256 initialFixedBudget
-                ) = abi.decode(logs[i].data, (bytes32, uint256, address, address, uint256, uint256));
-                require(resourceKey == recorded.resourceKey, "accepted resource");
-                require(railId == recorded.railId, "accepted rail");
-                require(beneficiary == recorded.beneficiary && token == recorded.token, "accepted recipients");
                 if (subscriptionId == FLAT_ID) {
-                    require(initialRate == 10 && initialFixedBudget == 0, "flat accepted terms");
+                    require(logs[i].topics[3] == flat.offerHash, "flat accepted offer");
+                    require(keccak256(logs[i].data) == keccak256(_acceptedData(flat, 10, 0, 0)), "flat accepted terms");
                 } else if (subscriptionId == CAPACITY_ID) {
-                    require(initialRate == 10 && initialFixedBudget == 0, "capacity accepted terms");
+                    require(logs[i].topics[3] == capacity.offerHash, "capacity accepted offer");
+                    require(
+                        keccak256(logs[i].data) == keccak256(_acceptedData(capacity, 10, 0, 130)),
+                        "capacity accepted terms"
+                    );
                 } else if (subscriptionId == METERED_ID) {
-                    require(initialRate == 0 && initialFixedBudget == 10 ether, "metered accepted terms");
+                    require(logs[i].topics[3] == metered.offerHash, "metered accepted offer");
+                    require(
+                        keccak256(logs[i].data) == keccak256(_acceptedData(metered, 0, 10 ether, 0)),
+                        "metered accepted terms"
+                    );
                 } else {
                     revert("unknown accepted subscription");
                 }
@@ -423,6 +458,49 @@ contract A8LifecycleReconstructionTest {
         require(claimSnapshot.window == 0 && claimSnapshot.windowGross == 5 ether, "claim window");
         require(claimSnapshot.remainingWindowGross == 5 ether, "window remaining");
         require(claimSnapshot.remainingLifetimeGross == 5 ether, "lifetime remaining");
+    }
+
+    function _acceptedData(
+        BossTypes.Subscription memory subscription,
+        uint256 initialRate,
+        uint256 initialFixedBudget,
+        uint64 initialQuoteValidThrough
+    ) private pure returns (bytes memory) {
+        return abi.encode(
+            subscription.resourceKey,
+            subscription.railId,
+            subscription.beneficiary,
+            subscription.token,
+            initialFixedBudget,
+            subscription.provider,
+            subscription.reporter,
+            subscription.resourceAdapter,
+            subscription.pricingAdapter,
+            subscription.resourceDataHash,
+            subscription.pricingDataHash,
+            subscription.accessGrantHash,
+            _policyWord(subscription),
+            subscription.caps.maxRatePerEpoch,
+            subscription.caps.maxFixedLockup,
+            subscription.caps.maxSingleCharge,
+            subscription.caps.maxChargePerWindow,
+            subscription.caps.lifetimeCapGross,
+            _capEpochs(subscription.caps),
+            initialRate,
+            uint256(subscription.acceptedEpoch) | (uint256(initialQuoteValidThrough) << 64)
+                | (uint256(subscription.quoteTtlEpochs) << 128)
+        );
+    }
+
+    function _policyWord(BossTypes.Subscription memory subscription) private pure returns (uint256) {
+        return uint256(subscription.billingKind) | (uint256(subscription.assuranceKind) << 8)
+            | (uint256(subscription.dependencyKind) << 16) | (uint256(subscription.activationKind) << 24)
+            | (uint256(subscription.terminationBillingKind) << 32) | (uint256(subscription.pauseAllowed ? 1 : 0) << 40);
+    }
+
+    function _capEpochs(BossTypes.CapPolicy memory caps) private pure returns (uint256) {
+        return uint256(caps.chargeWindowEpochs) | (uint256(caps.notAfterEpoch) << 64)
+            | (uint256(caps.maxLockupPeriod) << 128);
     }
 
     function _rail(address account, BossTypes.Subscription memory subscription, uint256 rate, uint256 endEpoch)

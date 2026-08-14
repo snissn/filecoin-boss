@@ -69,6 +69,8 @@
       "minProperties": 1,
       "required": [
         "BossFactory",
+        "BossServiceRegistry",
+        "BossAdapterRegistry",
         "BossStateView",
         "BossBundles"
       ],

@@ -622,15 +622,14 @@ function acceptOffer(
 ) external returns (bytes32 subscriptionId, uint256 railId);
 
 function acceptBundle(
-    address bundles,
     bytes32 manifestHash,
     uint64 version,
     bytes[] calldata encodedAcceptances
-) external returns (bytes32 bundleId, bytes32[] memory subscriptionIds);
+) external returns (bytes32 bundleId);
 
 ```
 
-The typed `BundleAcceptance` remains the SDK-level model. The deployed account accepts **1 through 32** exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
+The typed `BundleAcceptance` remains the SDK-level model. `BossFactory` deploys one canonical `BossBundles` registry and immutably binds every account it creates to that registry. The deployed account accepts **1 through 32** exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning its `bundleId`. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
 
 
 function activate(bytes32 subscriptionId) external;
@@ -1069,8 +1068,23 @@ event SubscriptionAccepted(
     uint256 railId,
     address beneficiary,
     address token,
-    uint256 initialRate,
-    uint256 initialFixedBudget
+    uint256 initialFixedBudget,
+    address provider,
+    address reporter,
+    address resourceAdapter,
+    address pricingAdapter,
+    bytes32 resourceDataHash,
+    bytes32 pricingDataHash,
+    bytes32 accessGrantHash,
+    uint256 policyWord,
+    uint256 maxRatePerEpoch,
+    uint256 maxFixedLockup,
+    uint256 maxSingleCharge,
+    uint256 maxChargePerWindow,
+    uint256 lifetimeCapGross,
+    uint256 capEpochs,
+    uint256 acceptedRatePerEpoch,
+    uint256 acceptanceEpochs
 );
 
 event BundleAccepted(bytes32 indexed bundleId, address indexed account, bytes32 manifestHash);
@@ -1089,6 +1103,8 @@ event UsageClaimCharged(bytes32 indexed subscriptionId, bytes32 indexed claimId,
 event AccessGrantCommitted(bytes32 indexed subscriptionId, bytes32 accessGrantHash);
 event AccessGrantRevoked(bytes32 indexed subscriptionId, bytes32 revocationHash);
 ```
+
+The complete acceptance record is emitted once at acceptance. `policyWord` packs billing, assurance, dependency, activation, and termination kinds into successive 8-bit lanes from bit 0 and `pauseAllowed` at bit 40. `capEpochs` and `acceptanceEpochs` pack their three documented epoch values into successive 64-bit lanes, so indexers do not need a later mutable state read to recover accepted terms.
 
 The Boss subgraph joins a subscription to generic Filecoin Pay data using:
 

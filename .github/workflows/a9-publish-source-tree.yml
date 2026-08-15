@@ -1,0 +1,72 @@
+name: Publish qualified A9 source tree
+
+on:
+  push:
+    branches:
+      - gpt56/issue-11-devnet-calibration-deployment
+    paths:
+      - .github/workflows/a9-publish-source-tree.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: a9-publish-source-tree
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify and publish staged source tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent=f49b0e450cc48381cfc05ce873c135304669fb7f
+          source_tree=978ded35ad85e917d4ce9d32308a4ddad6d8867d
+          test "$(git rev-parse HEAD^)" = "$expected_parent"
+
+          tree_json=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/trees/${source_tree}?recursive=1")
+          test "$(jq -r '.truncated' <<<"$tree_json")" = "false"
+          for required in \
+            script/Deploy.s.sol \
+            test/deployment/DeploymentConfig.t.sol \
+            test/deployment/DeploymentArtifacts.t.sol; do
+            jq -e --arg path "$required" '.tree[] | select(.path == $path and .type == "blob")' \
+              <<<"$tree_json" >/dev/null
+          done
+
+          payload=$(jq -n \
+            --arg message 'feat: add reproducible Boss deployment tooling' \
+            --arg tree "$source_tree" \
+            --arg parent "$GITHUB_SHA" \
+            '{message: $message, tree: $tree, parents: [$parent]}')
+          commit_json=$(curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$payload" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/commits")
+          commit=$(jq -r '.sha' <<<"$commit_json")
+          test "$commit" != "null"
+
+          ref_payload=$(jq -n --arg sha "$commit" '{sha: $sha, force: false}')
+          curl -fsSL -X PATCH \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$ref_payload" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/gpt56/issue-11-devnet-calibration-deployment" \
+            >/dev/null

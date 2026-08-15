@@ -1,0 +1,66 @@
+name: A9 local development kit
+
+on:
+  push:
+    branches:
+      - gpt56/issue-11-devnet-calibration-deployment
+    paths:
+      - .github/workflows/a9-local-kit.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a9-local-development-kit
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: false
+
+      - name: Build exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          forge build --sizes | tee /tmp/a9-build.log
+
+      - name: Package source and toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a9-kit /tmp/a9-foundry /tmp/a9-solc
+          tar --exclude=.git --exclude=out --exclude=cache -czf /tmp/a9-kit/repository.tar.gz .
+          cp -L "$HOME/.foundry/bin/forge" "$HOME/.foundry/bin/cast" \
+            "$HOME/.foundry/bin/anvil" "$HOME/.foundry/bin/chisel" /tmp/a9-foundry/
+          solc_path="$(find "$HOME/.svm" -type f -name 'solc-0.8.30' -perm -111 -print -quit)"
+          test -n "$solc_path"
+          cp -L "$solc_path" /tmp/a9-solc/solc-0.8.30
+          tar -C /tmp/a9-foundry -czf /tmp/a9-kit/foundry-bin.tar.gz forge cast anvil chisel
+          tar -C /tmp/a9-solc -czf /tmp/a9-kit/solc-bin.tar.gz solc-0.8.30
+          git rev-parse HEAD > /tmp/a9-kit/source-head.txt
+          git -C lib/filecoin-pay rev-parse HEAD > /tmp/a9-kit/filecoin-pay-head.txt
+          cp /tmp/a9-build.log /tmp/a9-kit/build.log
+          cd /tmp/a9-kit
+          sha256sum repository.tar.gz foundry-bin.tar.gz solc-bin.tar.gz \
+            source-head.txt filecoin-pay-head.txt build.log > SHA256SUMS
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: a9-local-development-kit
+          path: /tmp/a9-kit/
+          if-no-files-found: error
+          retention-days: 1

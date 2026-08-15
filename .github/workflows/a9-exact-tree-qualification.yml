@@ -1,0 +1,135 @@
+name: A9 exact-tree qualification
+
+on:
+  push:
+    branches:
+      - gpt56/issue-11-devnet-calibration-deployment
+    paths:
+      - .github/workflows/a9-exact-tree-qualification.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: a9-exact-tree-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: false
+
+      - name: Resolve immutable source parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_parent=$(git rev-parse HEAD^)
+          changed=$(git diff --name-only "$source_parent" "$GITHUB_SHA")
+          test "$changed" = ".github/workflows/a9-exact-tree-qualification.yml"
+          echo "SOURCE_PARENT=$source_parent" >> "$GITHUB_ENV"
+          echo "SOURCE_TREE=$(git rev-parse "$source_parent^{tree}")" >> "$GITHUB_ENV"
+
+      - name: Qualify A9 source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$SOURCE_PARENT"
+          git submodule update --init --recursive
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+
+          test -f script/Deploy.s.sol
+          test -f test/deployment/DeploymentConfig.t.sol
+          test -f test/deployment/DeploymentArtifacts.t.sol
+          test -d deployments
+
+          git diff --check
+          forge fmt --check
+          forge build --sizes | tee /tmp/a9-build.log
+          forge test -vvv | tee /tmp/a9-test.log
+
+          find deployments -type f -name '*.json' -print0 | xargs -0 -r -n1 jq empty
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          python3 - <<'PY'
+          from pathlib import Path
+          import py_compile
+          for path in sorted(Path('scripts').rglob('*.py')):
+              py_compile.compile(str(path), doraise=True)
+          PY
+
+          suites=$(grep -Eo '[0-9]+ test suites' /tmp/a9-test.log | tail -1 | awk '{print $1}')
+          tests=$(grep -Eo '[0-9]+ tests passed' /tmp/a9-test.log | tail -1 | awk '{print $1}')
+          test -n "$suites"
+          test -n "$tests"
+          echo "TEST_SUITES=$suites" >> "$GITHUB_ENV"
+          echo "TESTS_PASSED=$tests" >> "$GITHUB_ENV"
+
+      - name: Publish cleanup-only final candidate
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git rm .github/workflows/a9-exact-tree-qualification.yml
+          if test -e .github/workflows/a9-local-kit.yml; then
+            git rm .github/workflows/a9-local-kit.yml
+          fi
+          unexpected=$(git diff --cached --name-only | grep -vE '^\.github/workflows/(a9-exact-tree-qualification|a9-local-kit)\.yml$' || true)
+          test -z "$unexpected"
+          git diff --cached --check
+
+          final_tree=$(git write-tree)
+          final_commit=$(printf '%s\n' 'chore: finalize A9 candidate' | git commit-tree "$final_tree" -p "$GITHUB_SHA")
+          test "$(git rev-parse "$SOURCE_PARENT^{tree}")" = "$SOURCE_TREE"
+
+          git remote set-url origin "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "$final_commit":gpt56/issue-11-devnet-calibration-deployment
+
+          body=$(jq -n -r \
+            --arg source "$SOURCE_PARENT" \
+            --arg tree "$SOURCE_TREE" \
+            --arg final "$final_commit" \
+            --arg run "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --arg suites "$TEST_SUITES" \
+            --arg tests "$TESTS_PASSED" \
+            '"## A9 exact-tree qualification\n\n- source commit: `" + $source + "`\n- qualified tree: `" + $tree + "`\n- cleanup-only final candidate: `" + $final + "`\n- run: " + $run + "\n- `forge fmt --check`: PASS\n- `forge build --sizes`: PASS\n- `forge test -vvv`: PASS — " + $tests + " tests across " + $suites + " suites\n- deployment JSON validation: PASS\n- shell syntax validation: PASS\n- Python compilation validation: PASS\n- temporary A9 publication workflows: absent from the final tree\n\nThe final candidate has the qualified source tree plus only removal of temporary publication workflows. Calibration deployment remains an explicit external evidence gate."')
+          payload=$(jq -n --arg body "$body" '{body:$body}')
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_PUSH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$payload" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/28/comments" \
+            >/dev/null
+
+      - name: Record failed qualification
+        if: failure()
+        env:
+          GH_PUSH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="A9 exact-tree qualification failed for source parent \`${SOURCE_PARENT:-unknown}\`. Run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. The branch was not advanced to a final candidate."
+          payload=$(jq -n --arg body "$body" '{body:$body}')
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_PUSH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$payload" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/28/comments" \
+            >/dev/null

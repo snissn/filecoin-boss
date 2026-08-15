@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {BossAccount} from "../../src/BossAccount.sol";
 import {BossFactory} from "../../src/BossFactory.sol";
+import {BossBundles} from "../../src/BossBundles.sol";
 
 interface VmFactory {
     struct Log {
@@ -37,6 +38,8 @@ contract BossFactoryTest {
 
         require(factory.accountCreationCodeHash() == keccak256(creationCode), "creation-code hash");
         require(address(factory).code.length <= 20_480, "factory has less than 4 KiB EIP-170 margin");
+        require(factory.bundles().code.length != 0, "bundle registry missing");
+        require(BossBundles(factory.bundles()).factory() == address(factory), "bundle factory mismatch");
     }
 
     function testPredictionDeploymentMappingAndEventAreDeterministic() public {
@@ -46,7 +49,10 @@ contract BossFactoryTest {
         address predicted =
             factory.predictAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, creationCode);
         bytes32 initCodeHash = keccak256(
-            abi.encodePacked(creationCode, abi.encode(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION))
+            abi.encodePacked(
+                creationCode,
+                abi.encode(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, VERSION, factory.bundles())
+            )
         );
         address manuallyPredicted = address(
             uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(factory), expectedKey, initCodeHash))))
@@ -173,9 +179,9 @@ contract BossFactoryTest {
             )
         );
 
-        try new BossAccount(OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion) returns (
-            BossAccount
-        ) {
+        try new BossAccount(
+            OWNER, FILECOIN_PAY, SERVICE_REGISTRY, ADAPTER_REGISTRY, unsupportedVersion, factory.bundles()
+        ) returns (BossAccount) {
             revert("unsupported account version deployed");
         } catch {}
     }
@@ -204,6 +210,7 @@ contract BossFactoryTest {
         require(account.adapterRegistry() == ADAPTER_REGISTRY, "adapter registry pinned");
         require(account.accountVersion() == VERSION, "version pinned");
         require(account.factory() == address(factory), "factory pinned");
+        require(factory.bundles().code.length != 0, "bundle registry pinned");
     }
 
     function testZeroAuthorityAndConfigurationInputsFailClosed() public {

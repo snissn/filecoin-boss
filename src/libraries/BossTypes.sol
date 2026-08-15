@@ -3,6 +3,8 @@ pragma solidity ^0.8.30;
 
 /// @notice Canonical Filecoin Boss v1 wire types and cap helpers.
 library BossTypes {
+    uint256 internal constant MAX_BUNDLE_COMPONENTS = 32;
+
     enum ResourceKind {
         FWSS_PDP_DATASET,
         BARE_PDP_DATASET,
@@ -196,6 +198,15 @@ library BossTypes {
         bytes32 resourceKey;
         bytes32 manifestHash;
         uint64 version;
+    }
+
+    function isPinnedAdapter(AdapterRecord memory record, address adapter, AdapterKind kind)
+        internal
+        view
+        returns (bool)
+    {
+        return record.kind == kind && record.interfaceVersion == 1 && record.codeHash != bytes32(0)
+            && adapter.code.length != 0 && adapter.codehash == record.codeHash;
     }
 
     function isUnlimitedCap(uint256 cap) internal pure returns (bool) {

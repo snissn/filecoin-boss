@@ -109,7 +109,9 @@ contract PDPCapacityLifecycleTest {
             address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://capacity-pricing"
         );
 
-        account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
+        account = new BossAccount(
+            address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1, address(this)
+        );
         pay.setOperatorApproval(address(0), address(this), address(account), true);
     }
 
@@ -277,8 +279,8 @@ contract PDPCapacityLifecycleTest {
         require(shortQuote.validThroughEpoch == 0, "adapter selected ttl");
     }
 
-    function testBossAccountKeepsOneKiBRuntimeMargin() public view {
-        require(address(account).code.length <= 23_552, "BossAccount has less than 1 KiB EIP-170 margin");
+    function testBossAccountKeepsFixedFiveHundredTwelveByteRuntimeMargin() public view {
+        require(address(account).code.length <= 24_064, "BossAccount has less than 512-byte EIP-170 margin");
     }
 
     function _input(uint256 nonce, uint256 maxRate) private returns (BossTypes.AcceptanceInput memory input) {

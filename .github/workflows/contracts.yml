@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,18 +18,24 @@ jobs:
   foundry:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Verify Filecoin Pay source lock
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+          expected=04ded6af6c15c4b5d98545f393dc656004d4aede
+          observed=$(git -C lib/filecoin-pay rev-parse HEAD)
+          if [[ "$observed" != "$expected" ]]; then
+            echo "filecoin-pay lock mismatch: expected $expected, observed $observed" >&2
+            exit 1
+          fi
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
         with:
           version: v1.3.5
           cache: true

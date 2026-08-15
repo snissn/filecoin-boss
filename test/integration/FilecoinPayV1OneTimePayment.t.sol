@@ -93,7 +93,9 @@ contract FilecoinPayV1OneTimePaymentTest {
         adapterRegistry.registerAdapter(address(resourceAdapter), BossTypes.AdapterKind.RESOURCE, 1, "ipfs://resource");
         adapterRegistry.registerAdapter(address(pricingAdapter), BossTypes.AdapterKind.PRICING, 1, "ipfs://pricing");
 
-        account = new BossAccount(address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1);
+        account = new BossAccount(
+            address(this), address(pay), address(serviceRegistry), address(adapterRegistry), 1, address(this)
+        );
         pay.setOperatorApproval(IERC20(address(token)), address(account), true, 0, 10 ether, 0);
     }
 

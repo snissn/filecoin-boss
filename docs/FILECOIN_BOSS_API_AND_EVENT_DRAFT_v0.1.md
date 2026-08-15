@@ -534,8 +534,23 @@ interface IBossAccount {
         uint256 railId,
         address beneficiary,
         address token,
-        uint256 initialRate,
-        uint256 initialFixedBudget
+        uint256 initialFixedBudget,
+        address provider,
+        address reporter,
+        address resourceAdapter,
+        address pricingAdapter,
+        bytes32 resourceDataHash,
+        bytes32 pricingDataHash,
+        bytes32 accessGrantHash,
+        uint256 policyWord,
+        uint256 maxRatePerEpoch,
+        uint256 maxFixedLockup,
+        uint256 maxSingleCharge,
+        uint256 maxChargePerWindow,
+        uint256 lifetimeCapGross,
+        uint256 capEpochs,
+        uint256 acceptedRatePerEpoch,
+        uint256 acceptanceEpochs
     );
 
     event BundleAccepted(
@@ -644,12 +659,19 @@ interface IBossAccount {
     );
 
     function acceptBundle(
-        BundleAcceptance calldata input
-    ) external returns (
-        bytes32 bundleId,
-        bytes32[] memory subscriptionIds
-    );
+        bytes32 manifestHash,
+        uint64 version,
+        bytes[] calldata encodedAcceptances
+    ) external returns (bytes32 bundleId);
 
+```
+
+`SubscriptionAccepted` is self-sufficient for accepted subscription reconstruction. `policyWord` packs billing, assurance, dependency, activation, and termination kinds into successive 8-bit lanes from bit 0 and stores `pauseAllowed` at bit 40. `capEpochs` packs `chargeWindowEpochs`, `notAfterEpoch`, and `maxLockupPeriod` into successive 64-bit lanes. `acceptanceEpochs` similarly packs `acceptedEpoch`, `quoteValidThroughEpoch`, and `quoteTtlEpochs`.
+
+The typed `BundleAcceptance` remains the SDK-level model. `BossFactory` deploys and exposes one canonical `BossBundles` registry, and every account created by that factory is immutably bound to it. The deployed account accepts **1 through 32** exact `abi.encodeCall(BossAccount.acceptOffer, (acceptance))` payloads, rejects every other selector, executes them by self-delegatecall so owner authority is preserved, and creates the immutable bundle before returning its `bundleId`. Component subscription IDs remain discoverable through the account index and bundle events. Any component or grouping failure reverts all subscriptions and Filecoin Pay rails atomically.
+
+
+```solidity
     function acknowledgeActivation(
         bytes32 subscriptionId,
         bytes32 provisioningHash,
@@ -832,17 +854,8 @@ function acceptOffer(
     pricingDataBySubscription[subscriptionId] = input.pricingData;
     subscriptionByRail[railId] = subscriptionId;
 
-    emit SubscriptionAccepted(
-        subscriptionId,
-        address(this),
-        offerHash,
-        resource.resourceKey,
-        railId,
-        offer.beneficiary,
-        offer.token,
-        initialRate,
-        initialFixed
-    );
+    // Emit the complete accepted semantic record through the shared event ABI.
+    _emitSubscriptionAccepted(subscriptionId, acceptedSubscription);
 }
 ```
 

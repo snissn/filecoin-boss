@@ -1,0 +1,61 @@
+{
+  "accountCreationCodeHash": "0x6ad8c166cdf9aa41ded2dd7be3fb38ab96b87265d1c4c7a5d0bf05307e7490bb",
+  "compiler": {
+    "bytecodeHash": "none",
+    "cborMetadata": false,
+    "evmVersion": "prague",
+    "optimizer": {
+      "enabled": true,
+      "runs": 1
+    },
+    "solcVersion": "0.8.30",
+    "viaIR": true
+  },
+  "contracts": [
+    {
+      "abi": "abi/BossAccount.json",
+      "creationCode": "bytecode/BossAccount.creation.hex",
+      "creationCodeHash": "0x6ad8c166cdf9aa41ded2dd7be3fb38ab96b87265d1c4c7a5d0bf05307e7490bb",
+      "name": "BossAccount"
+    },
+    {
+      "abi": "abi/BossFactory.json",
+      "name": "BossFactory"
+    },
+    {
+      "abi": "abi/BossServiceRegistry.json",
+      "name": "BossServiceRegistry"
+    },
+    {
+      "abi": "abi/BossAdapterRegistry.json",
+      "name": "BossAdapterRegistry"
+    },
+    {
+      "abi": "abi/BossBundles.json",
+      "name": "BossBundles"
+    },
+    {
+      "abi": "abi/BossStateView.json",
+      "name": "BossStateView"
+    },
+    {
+      "abi": "abi/FlatRateAdapter.json",
+      "name": "FlatRateAdapter"
+    },
+    {
+      "abi": "abi/PDPCapacityAdapter.json",
+      "name": "PDPCapacityAdapter"
+    },
+    {
+      "abi": "abi/CappedMeteredAdapter.json",
+      "name": "CappedMeteredAdapter"
+    },
+    {
+      "abi": "abi/FWSSPDPResourceAdapter.json",
+      "name": "FWSSPDPResourceAdapter"
+    }
+  ],
+  "protocolCommit": "4a7bd35801ea6bc0521f942f48a9b7a713172bc0",
+  "schemaVersion": 1,
+  "sourceCommit": "4a7bd35801ea6bc0521f942f48a9b7a713172bc0"
+}

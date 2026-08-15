@@ -1,0 +1,1845 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "filecoinPay_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "serviceRegistry_",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "adapterRegistry_",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "accountVersion_",
+        "type": "uint64"
+      },
+      {
+        "internalType": "address",
+        "name": "bundles_",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "manifestHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "encodedAcceptances",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "acceptBundle",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "bundleId",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "serviceId",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "uint64",
+                "name": "offerVersion",
+                "type": "uint64"
+              },
+              {
+                "internalType": "address",
+                "name": "provider",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "signingKey",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "beneficiary",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "reporter",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "resourceAdapter",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "pricingAdapter",
+                "type": "address"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "serviceType",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "enum BossTypes.BillingKind",
+                "name": "billingKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.AssuranceKind",
+                "name": "assuranceKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.DependencyKind",
+                "name": "dependencyKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.ActivationKind",
+                "name": "activationKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum BossTypes.TerminationBillingKind",
+                "name": "terminationBillingKind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "pricingDataHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "termsHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "accessScopeHash",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "uint64",
+                "name": "validAfterEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "validUntilEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "requiredLockupPeriod",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "quoteTtlEpochs",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint16",
+                "name": "commissionBps",
+                "type": "uint16"
+              },
+              {
+                "internalType": "address",
+                "name": "commissionRecipient",
+                "type": "address"
+              },
+              {
+                "internalType": "bool",
+                "name": "pauseAllowed",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "providerMaxRatePerEpoch",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "providerMaxFixedLockup",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "nonce",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct BossTypes.ServiceOffer",
+            "name": "offer",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bytes",
+            "name": "providerSignature",
+            "type": "bytes"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum BossTypes.ResourceKind",
+                "name": "kind",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint64",
+                "name": "chainId",
+                "type": "uint64"
+              },
+              {
+                "internalType": "address",
+                "name": "anchor",
+                "type": "address"
+              },
+              {
+                "internalType": "uint256",
+                "name": "resourceId",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "context",
+                "type": "bytes32"
+              }
+            ],
+            "internalType": "struct BossTypes.ResourceRef",
+            "name": "resource",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bytes",
+            "name": "resourceData",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes",
+            "name": "pricingData",
+            "type": "bytes"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "maxRatePerEpoch",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxFixedLockup",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxSingleCharge",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxChargePerWindow",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "lifetimeCapGross",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint64",
+                "name": "chargeWindowEpochs",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "notAfterEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "maxLockupPeriod",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct BossTypes.CapPolicy",
+            "name": "caps",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "initialFixedBudget",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "accessGrantHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct BossTypes.AcceptanceInput",
+        "name": "input",
+        "type": "tuple"
+      }
+    ],
+    "name": "acceptOffer",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "accountVersion",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "provisioningHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "providerSignature",
+        "type": "bytes"
+      }
+    ],
+    "name": "acknowledgeActivation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "activate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "provisioningHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "activationAckDigest",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "activationAcknowledged",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "adapterRegistry",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "factory",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "filecoinPay",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getSubscription",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "offerHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "resourceKey",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "resourceDataHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "pricingDataHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "accessGrantHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "provider",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "beneficiary",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "reporter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "token",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "resourceAdapter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "pricingAdapter",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "railId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum BossTypes.BillingKind",
+            "name": "billingKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum BossTypes.AssuranceKind",
+            "name": "assuranceKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum BossTypes.DependencyKind",
+            "name": "dependencyKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum BossTypes.ActivationKind",
+            "name": "activationKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum BossTypes.TerminationBillingKind",
+            "name": "terminationBillingKind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "pauseAllowed",
+            "type": "bool"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "maxRatePerEpoch",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxFixedLockup",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxSingleCharge",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxChargePerWindow",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "lifetimeCapGross",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint64",
+                "name": "chargeWindowEpochs",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "notAfterEpoch",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint64",
+                "name": "maxLockupPeriod",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct BossTypes.CapPolicy",
+            "name": "caps",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "acceptedRatePerEpoch",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "settledGross",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oneTimeChargedGross",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "currentFixedBudget",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "acceptedEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activatedEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "quoteValidThroughEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "quoteTtlEpochs",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "pausedEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "terminationRequestedEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "payEndEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastUsageToEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "enum BossTypes.SubscriptionState",
+            "name": "state",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct BossTypes.Subscription",
+        "name": "subscription",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "payer",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "railTerminated",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "resume",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "serviceRegistry",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "untilEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "settle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "claimId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "fromEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "toEpoch",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "units",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "evidenceHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "evidenceURI",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BossTypes.UsageClaim",
+        "name": "claim",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "reporterSignature",
+        "type": "bytes"
+      }
+    ],
+    "name": "submitUsageClaim",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "chargedGross",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      }
+    ],
+    "name": "subscriptionForRail",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "subscriptionIndex",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "syncRate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "terminate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "newFixedBudget",
+        "type": "uint256"
+      }
+    ],
+    "name": "topUpFixedBudget",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "window",
+        "type": "uint256"
+      }
+    ],
+    "name": "usageClaimState",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "claimConsumed",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "nonceConsumed",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "windowGross",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "proposedAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rate",
+        "type": "uint256"
+      }
+    ],
+    "name": "validatePayment",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "modifiedAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "settleUpto",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "note",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct IFilecoinPayValidator.ValidationResult",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "accessGrantHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AccessGrantCommitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "oldBudget",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newBudget",
+        "type": "uint256"
+      }
+    ],
+    "name": "FixedBudgetToppedUp",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "reason",
+        "type": "bytes"
+      }
+    ],
+    "name": "PauseRateUpdateDeferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "provisioningHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ProviderActivationAcknowledged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "oldRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newRate",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "quoteEpoch",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "validThroughEpoch",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "resourceStatusHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RateSynchronized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "offerHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "resourceKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "initialFixedBudget",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "provider",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "reporter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "resourceAdapter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "pricingAdapter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "resourceDataHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "pricingDataHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "accessGrantHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "policyWord",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxRatePerEpoch",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxFixedLockup",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxSingleCharge",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxChargePerWindow",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lifetimeCapGross",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "capEpochs",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "acceptedRatePerEpoch",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "acceptanceEpochs",
+        "type": "uint256"
+      }
+    ],
+    "name": "SubscriptionAccepted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "activatedEpoch",
+        "type": "uint64"
+      }
+    ],
+    "name": "SubscriptionActivated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "endedEpoch",
+        "type": "uint64"
+      }
+    ],
+    "name": "SubscriptionEnded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "pausedEpoch",
+        "type": "uint64"
+      }
+    ],
+    "name": "SubscriptionPaused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "endEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "SubscriptionPayTerminationObserved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "resumedEpoch",
+        "type": "uint64"
+      }
+    ],
+    "name": "SubscriptionResumed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "requestEpoch",
+        "type": "uint64"
+      }
+    ],
+    "name": "SubscriptionTerminationRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "claimHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "units",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "rawGross",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "chargedGross",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "evidenceHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UsageClaimCharged",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ActivationAlreadyAcknowledged",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ActivationNotAcknowledged",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "expected",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "observed",
+        "type": "uint256"
+      }
+    ],
+    "name": "FixedBudgetOutOfSync",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAccountVersion",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adapter",
+        "type": "address"
+      },
+      {
+        "internalType": "enum BossTypes.AdapterKind",
+        "name": "kind",
+        "type": "uint8"
+      }
+    ],
+    "name": "InvalidAdapter",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAdapterRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBundleBatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBundleRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCapacityQuote",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCaps",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFilecoinPay",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidOffer",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidProviderAuthority",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidProviderSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidQuote",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidReporter",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidResource",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidService",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidServiceRegistry",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "fromEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "InvalidSettlementRange",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum BossTypes.SubscriptionState",
+        "name": "state",
+        "type": "uint8"
+      }
+    ],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "currentBudget",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "requestedBudget",
+        "type": "uint256"
+      }
+    ],
+    "name": "InvalidTopUp",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidUsageClaim",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "currentEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "validUntilEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "OfferExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "currentEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "validAfterEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "OfferNotYetValid",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "PauseNotAllowed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "expectedEpoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "observedEpoch",
+        "type": "uint256"
+      }
+    ],
+    "name": "RailNotCurrent",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "SubscriptionAlreadyExists",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
+    ],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "railId",
+        "type": "uint256"
+      }
+    ],
+    "name": "UnknownRail",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "subscriptionId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UnknownSubscription",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnsupportedBillingKind",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnsupportedTerminationBillingKind",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "claimId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UsageClaimAlreadyConsumed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      }
+    ],
+    "name": "UsageNonceAlreadyConsumed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "startWindow",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endWindow",
+        "type": "uint256"
+      }
+    ],
+    "name": "UsageWindowMismatch",
+    "type": "error"
+  }
+]

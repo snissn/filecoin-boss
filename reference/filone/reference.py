@@ -13,6 +13,7 @@ HASH = re.compile(r"^0x[0-9a-fA-F]{64}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 ZERO_ADDRESS = "0x" + "0" * 40
 ZERO_HASH = "0x" + "0" * 64
+UINT64_MAX = (1 << 64) - 1
 UINT256_MAX = (1 << 256) - 1
 TIB = 1 << 40
 
@@ -38,18 +39,47 @@ PRODUCT_POLICY = {
 }
 PRODUCT_NUMBERS = {"grossPricePerTiBPerPeriod", "periodEpochs", "requiredLockupPeriod", "quoteTtlEpochs"}
 CONFIG_KEYS = {
-    "chainId", "provider", "signingKey", "beneficiary", "token", "resourceAdapter", "pricingAdapter",
-    "offerVersion", "validAfterEpoch", "validUntilEpoch", "nonce", "providerMaxRatePerEpoch",
+    "chainId",
+    "provider",
+    "signingKey",
+    "beneficiary",
+    "token",
+    "resourceAdapter",
+    "pricingAdapter",
+    "offerVersion",
+    "validAfterEpoch",
+    "validUntilEpoch",
+    "nonce",
+    "providerMaxRatePerEpoch",
 }
 TRANSACTIONS = {
-    "fund", "approveOperator", "createAccount", "acceptOffer", "syncRate", "settle", "pause", "terminate",
+    "fund",
+    "approveOperator",
+    "createAccount",
+    "acceptOffer",
+    "syncRate",
+    "settle",
+    "pause",
+    "terminate",
 }
 OBSERVATIONS = {
-    "deployment", "bossState", "payRail", "baseFwss", "subgraph", "synapseSdk", "filecoinPin", "explorer",
+    "deployment",
+    "bossState",
+    "payRail",
+    "baseFwss",
+    "subgraph",
+    "synapseSdk",
+    "filecoinPin",
+    "explorer",
 }
 EVIDENCE_KEYS = {
-    "schemaVersion", "productId", "chainId", "renderedOfferSha256", "deploymentManifestSha256",
-    "transactions", "observations",
+    "schemaVersion",
+    "productId",
+    "chainId",
+    "renderedOfferSha256",
+    "deploymentManifestSha256",
+    "transactions",
+    "observations",
 }
 
 
@@ -79,6 +109,13 @@ def uint(value, label, *, positive=False):
         raise ValueError(f"{label} must be an unsigned integer")
     if number < 0 or number > UINT256_MAX or (positive and number == 0):
         raise ValueError(f"{label} is outside uint256 bounds")
+    return number
+
+
+def uint64(value, label, *, positive=False):
+    number = uint(value, label, positive=positive)
+    if number > UINT64_MAX:
+        raise ValueError(f"{label} is outside uint64 bounds")
     return number
 
 
@@ -135,14 +172,15 @@ def load_product(path):
     price = uint(product["grossPricePerTiBPerPeriod"], "product.grossPricePerTiBPerPeriod", positive=True)
     if product["grossPricePerTiBPerPeriod"] != str(price):
         raise ValueError("product.grossPricePerTiBPerPeriod must use canonical decimal form")
-    for key in ("periodEpochs", "requiredLockupPeriod", "quoteTtlEpochs"):
-        uint(product[key], f"product.{key}", positive=True)
+    uint64(product["periodEpochs"], "product.periodEpochs", positive=True)
+    uint64(product["requiredLockupPeriod"], "product.requiredLockupPeriod", positive=True)
+    uint64(product["quoteTtlEpochs"], "product.quoteTtlEpochs", positive=True)
     return product
 
 
 def quote_rate_per_epoch(product, size_bytes):
     price = uint(product["grossPricePerTiBPerPeriod"], "grossPricePerTiBPerPeriod", positive=True)
-    period = uint(product["periodEpochs"], "periodEpochs", positive=True)
+    period = uint64(product["periodEpochs"], "periodEpochs", positive=True)
     return uint(size_bytes, "sizeBytes") * price // (TIB * period)
 
 
@@ -150,10 +188,10 @@ def render_offer(product, terms, config):
     if not isinstance(terms, bytes) or not terms:
         raise ValueError("terms must be nonempty raw bytes")
     exact_keys(config, CONFIG_KEYS, "config")
-    chain_id = uint(config["chainId"], "chainId", positive=True)
-    offer_version = uint(config["offerVersion"], "offerVersion", positive=True)
-    valid_after = uint(config["validAfterEpoch"], "validAfterEpoch")
-    valid_until = uint(config["validUntilEpoch"], "validUntilEpoch", positive=True)
+    chain_id = uint64(config["chainId"], "chainId", positive=True)
+    offer_version = uint64(config["offerVersion"], "offerVersion", positive=True)
+    valid_after = uint64(config["validAfterEpoch"], "validAfterEpoch")
+    valid_until = uint64(config["validUntilEpoch"], "validUntilEpoch", positive=True)
     nonce = uint(config["nonce"], "nonce")
     max_rate = uint(config["providerMaxRatePerEpoch"], "providerMaxRatePerEpoch", positive=True)
     if valid_until < valid_after:
@@ -162,11 +200,14 @@ def render_offer(product, terms, config):
         raise ValueError("providerMaxRatePerEpoch must use canonical decimal form")
 
     price = uint(product["grossPricePerTiBPerPeriod"], "grossPricePerTiBPerPeriod", positive=True)
-    period = uint(product["periodEpochs"], "periodEpochs", positive=True)
+    period = uint64(product["periodEpochs"], "periodEpochs", positive=True)
+    lockup_period = uint64(product["requiredLockupPeriod"], "requiredLockupPeriod", positive=True)
+    quote_ttl = uint64(product["quoteTtlEpochs"], "quoteTtlEpochs", positive=True)
+    commission_bps = uint(product["commissionBps"], "commissionBps")
     pricing_bytes = price.to_bytes(32, "big") + period.to_bytes(32, "big")
     offer = {
         "serviceId": keccak(product["productId"].encode()),
-        "offerVersion": offer_version,
+        "offerVersion": str(offer_version),
         "provider": address(config["provider"], "provider"),
         "signingKey": address(config["signingKey"], "signingKey"),
         "beneficiary": address(config["beneficiary"], "beneficiary"),
@@ -183,16 +224,16 @@ def render_offer(product, terms, config):
         "pricingDataHash": keccak(pricing_bytes),
         "termsHash": keccak(terms),
         "accessScopeHash": ZERO_HASH,
-        "validAfterEpoch": valid_after,
-        "validUntilEpoch": valid_until,
-        "requiredLockupPeriod": product["requiredLockupPeriod"],
-        "quoteTtlEpochs": product["quoteTtlEpochs"],
-        "commissionBps": product["commissionBps"],
+        "validAfterEpoch": str(valid_after),
+        "validUntilEpoch": str(valid_until),
+        "requiredLockupPeriod": str(lockup_period),
+        "quoteTtlEpochs": str(quote_ttl),
+        "commissionBps": str(commission_bps),
         "commissionRecipient": ZERO_ADDRESS,
         "pauseAllowed": product["pauseAllowed"],
         "providerMaxRatePerEpoch": str(max_rate),
         "providerMaxFixedLockup": "0",
-        "nonce": nonce,
+        "nonce": str(nonce),
     }
     return {
         "schemaVersion": 1,
@@ -210,7 +251,7 @@ def validate_evidence(rendered, evidence):
         raise ValueError("evidence.schemaVersion must equal 1")
     if evidence["productId"] != "filone-managed-storage-v1" or evidence["productId"] != rendered.get("productId"):
         raise ValueError("evidence.productId does not match the Filone reference")
-    if uint(evidence["chainId"], "evidence.chainId", positive=True) != rendered.get("chainId"):
+    if uint64(evidence["chainId"], "evidence.chainId", positive=True) != rendered.get("chainId"):
         raise ValueError("evidence.chainId does not match the rendered offer")
     if sha256_hex(evidence["renderedOfferSha256"], "evidence.renderedOfferSha256") != document_sha256(rendered):
         raise ValueError("evidence.renderedOfferSha256 does not match the rendered offer")
@@ -229,7 +270,7 @@ def validate_evidence(rendered, evidence):
         exact_keys(receipt, {"transactionHash", "blockNumber", "status"}, f"{stage}.receipt")
         if tx_hash(receipt["transactionHash"], f"{stage}.receipt.transactionHash") != expected_hash:
             raise ValueError(f"{stage}: receipt transaction hash does not match")
-        uint(receipt["blockNumber"], f"{stage}.receipt.blockNumber", positive=True)
+        uint64(receipt["blockNumber"], f"{stage}.receipt.blockNumber", positive=True)
         if receipt["status"] != 1:
             raise ValueError(f"{stage}: receipt status must equal 1")
 

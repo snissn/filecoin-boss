@@ -1,0 +1,50 @@
+name: Finalize Filone reference strictness
+
+on:
+  push:
+    branches:
+      - gpt56/issue-14-filone-pilot-release-evidence
+    paths:
+      - .github/workflows/filone-tighten.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: filone-tighten
+  cancel-in-progress: false
+
+jobs:
+  tighten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: gpt56/issue-14-filone-pilot-release-evidence
+          fetch-depth: 0
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Apply bounded repair
+        run: python3 .github/filone-tighten.py
+
+      - name: Validate reference package
+        run: |
+          python3 -m unittest discover -s reference/filone -p 'test_*.py' -v
+          python3 -m py_compile reference/filone/reference.py reference/filone/test_reference.py
+
+      - name: Publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/filone-tighten.py .github/workflows/filone-tighten.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(reference): tighten evidence scalar types and digest docs"
+          git push origin HEAD:gpt56/issue-14-filone-pilot-release-evidence

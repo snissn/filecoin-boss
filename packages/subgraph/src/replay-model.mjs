@@ -1,3 +1,5 @@
+const MAX_UINT256 = (1n << 256n) - 1n
+
 export function createEmptyState() {
   return {
     accounts: new Map(),
@@ -47,16 +49,21 @@ export function applyBossEvent(state, event) {
       })
       break
     case 'AdapterRegistered':
-    case 'AdapterActivationChanged':
       state.adapters.set(event.adapter, {
-        ...(state.adapters.get(event.adapter) ?? {}),
         kind: event.adapterKind,
         interfaceVersion: event.interfaceVersion,
-        codeHash: event.codeHash ?? event.observedCodeHash,
+        codeHash: event.codeHash,
+        observedCodeHash: event.codeHash,
         active: event.active ?? true,
         metadataURI: event.metadataURI,
       })
       break
+    case 'AdapterActivationChanged': {
+      const adapter = requireEntity(state.adapters, event.adapter, 'adapter')
+      adapter.active = event.active
+      adapter.observedCodeHash = event.observedCodeHash
+      break
+    }
     case 'BundleCreated':
       state.bundles.set(event.bundleId, {
         owner: event.owner,
@@ -84,6 +91,7 @@ export function applyBossEvent(state, event) {
         state: 'ACCEPTED',
         ratePerEpoch: event.ratePerEpoch,
         fixedBudget: event.fixedBudget,
+        lifetimeCapGross: event.lifetimeCapGross,
         totalRawGross: 0n,
         totalChargedGross: 0n,
         claimCount: 0,
@@ -92,7 +100,9 @@ export function applyBossEvent(state, event) {
       }
       state.subscriptions.set(event.subscriptionId, subscription)
       state.rails.set(event.railId.toString(), event.subscriptionId)
-      state.resources.set(event.resourceKey, event.subscriptionId)
+      const resourceSubscriptions = state.resources.get(event.resourceKey) ?? new Set()
+      resourceSubscriptions.add(event.subscriptionId)
+      state.resources.set(event.resourceKey, resourceSubscriptions)
       break
     }
     case 'ProviderActivationAcknowledged':
@@ -156,11 +166,17 @@ export function applyBossEvent(state, event) {
       subscription.totalRawGross += event.rawGross
       subscription.totalChargedGross += event.chargedGross
       subscription.fixedBudget = maxZero(subscription.fixedBudget - event.chargedGross)
+      if (subscription.fixedBudget === 0n || lifetimeExhausted(subscription)) subscription.state = 'EXHAUSTED'
       break
     }
-    case 'FixedBudgetToppedUp':
-      requireSubscription(state, event).fixedBudget = event.newFixedBudget
+    case 'FixedBudgetToppedUp': {
+      const subscription = requireSubscription(state, event)
+      subscription.fixedBudget = event.newFixedBudget
+      if (subscription.state === 'EXHAUSTED' && event.newFixedBudget > 0n && !lifetimeExhausted(subscription)) {
+        subscription.state = 'ACTIVE'
+      }
       break
+    }
     default:
       throw new Error(`unsupported Boss event kind: ${event.kind}`)
   }
@@ -176,6 +192,14 @@ function requireEntity(map, id, name) {
   const value = map.get(id)
   if (!value) throw new Error(`unknown ${name}: ${id}`)
   return value
+}
+
+function lifetimeExhausted(subscription) {
+  return (
+    typeof subscription.lifetimeCapGross === 'bigint' &&
+    subscription.lifetimeCapGross !== MAX_UINT256 &&
+    subscription.totalChargedGross >= subscription.lifetimeCapGross
+  )
 }
 
 function maxZero(value) {

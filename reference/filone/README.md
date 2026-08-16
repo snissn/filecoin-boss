@@ -42,6 +42,8 @@ python3 reference/filone/reference.py render \
 
 The renderer signs and broadcasts nothing. It commits the raw `terms.md` bytes and the exact 64-byte capacity-pricing tuple using Ethereum Keccak-256 from the repository's existing Foundry `cast` tool.
 
+`renderedOfferSha256` is the SHA-256 digest of canonical JSON: keys sorted, UTF-8 encoded, and no insignificant whitespace. It is deliberately independent of pretty-printing. Compute it with the package's `document_sha256` helper rather than `sha256sum` over the rendered file bytes.
+
 ## Validate evidence shape
 
 ```sh

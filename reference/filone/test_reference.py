@@ -145,6 +145,16 @@ class FiloneReferenceTest(unittest.TestCase):
             },
         )
 
+        boolean_schema = copy.deepcopy(evidence)
+        boolean_schema["schemaVersion"] = True
+        with self.assertRaisesRegex(ValueError, "schemaVersion"):
+            validate_evidence(rendered, boolean_schema)
+
+        boolean_status = copy.deepcopy(evidence)
+        boolean_status["transactions"]["acceptOffer"]["receipt"]["status"] = True
+        with self.assertRaisesRegex(ValueError, "receipt status"):
+            validate_evidence(rendered, boolean_status)
+
         mismatch = copy.deepcopy(evidence)
         mismatch["transactions"]["acceptOffer"]["receipt"]["transactionHash"] = HASH("e")
         with self.assertRaisesRegex(ValueError, "acceptOffer"):

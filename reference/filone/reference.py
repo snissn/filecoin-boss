@@ -247,8 +247,8 @@ def render_offer(product, terms, config):
 
 def validate_evidence(rendered, evidence):
     exact_keys(evidence, EVIDENCE_KEYS, "evidence")
-    if evidence["schemaVersion"] != 1:
-        raise ValueError("evidence.schemaVersion must equal 1")
+    if type(evidence["schemaVersion"]) is not int or evidence["schemaVersion"] != 1:
+        raise ValueError("evidence.schemaVersion must be the integer 1")
     if evidence["productId"] != "filone-managed-storage-v1" or evidence["productId"] != rendered.get("productId"):
         raise ValueError("evidence.productId does not match the Filone reference")
     if uint64(evidence["chainId"], "evidence.chainId", positive=True) != rendered.get("chainId"):
@@ -271,8 +271,8 @@ def validate_evidence(rendered, evidence):
         if tx_hash(receipt["transactionHash"], f"{stage}.receipt.transactionHash") != expected_hash:
             raise ValueError(f"{stage}: receipt transaction hash does not match")
         uint64(receipt["blockNumber"], f"{stage}.receipt.blockNumber", positive=True)
-        if receipt["status"] != 1:
-            raise ValueError(f"{stage}: receipt status must equal 1")
+        if type(receipt["status"]) is not int or receipt["status"] != 1:
+            raise ValueError(f"{stage}: receipt status must be the integer 1")
 
     for stage in sorted(OBSERVATIONS):
         observation = observations[stage]

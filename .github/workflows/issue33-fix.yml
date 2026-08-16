@@ -48,14 +48,7 @@ jobs:
           forge build --sizes
           forge test -vvv
 
-      - name: Regenerate deterministic contract package
-        shell: bash
-        run: |
-          set -euo pipefail
-          scripts/generate-contract-artifacts.sh
-          git diff --check
-
-      - name: Publish clean candidate
+      - name: Commit qualified source tree
         shell: bash
         run: |
           set -euo pipefail
@@ -65,4 +58,21 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "fix(contracts): decouple capacity pricing from assurance"
+
+      - name: Regenerate deterministic contract package
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/generate-contract-artifacts.sh
+          git diff --check
+          git add packages/contracts
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(contracts): regenerate Boss account authority"
+          fi
+
+      - name: Publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
           git push origin HEAD:gpt56/issue-33-capacity-assurance-decoupling

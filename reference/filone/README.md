@@ -7,6 +7,7 @@ This directory contains the deterministic, unsigned reference package for the Fi
 - Price: **2.49 USDFC per TiB per 30-day period**.
 - Billing: prospective `STREAM_CAPACITY` add-on pricing.
 - Assurance: `CANCELLABLE_ONLY`; no objectively verified SLA is claimed.
+- Activation: `IMMEDIATE`; the successful `acceptOffer` receipt and resulting Boss state are activation evidence, so there is no separate `activate` transaction.
 - Payment: one separate Boss/Filecoin Pay rail to the disclosed beneficiary.
 - Storage: the existing FWSS dataset and base rail remain unchanged.
 - Data authority: no ownership, custody, encryption-key, or data-access grant.
@@ -59,4 +60,4 @@ A successful result means only that the bounded document is eligible for an inde
 }
 ```
 
-The operator must independently verify chain identity, deployment manifest, transaction receipts, runtime code and constructor configuration, Boss state, Filecoin Pay rail state, unchanged base FWSS state, subgraph replay, Synapse SDK, Filecoin Pin, and Explorer observations. Do not insert provisional addresses or synthetic receipts.
+Produce and verify a separate evidence document for local devnet and Calibration. The operator must independently verify chain identity, deployment manifest, transaction receipts, runtime code and constructor configuration, Boss state, Filecoin Pay rail state, unchanged base FWSS state, subgraph replay, Synapse SDK, Filecoin Pin, and Explorer observations. Do not insert provisional addresses or synthetic receipts.

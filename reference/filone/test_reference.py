@@ -104,11 +104,28 @@ class FiloneReferenceTest(unittest.TestCase):
         self.assertEqual(offer["billingKind"], 1)
         self.assertEqual(offer["assuranceKind"], 0)
         self.assertEqual(offer["activationKind"], 0)
+        for field in (
+            "offerVersion",
+            "validAfterEpoch",
+            "validUntilEpoch",
+            "requiredLockupPeriod",
+            "quoteTtlEpochs",
+            "commissionBps",
+            "providerMaxRatePerEpoch",
+            "providerMaxFixedLockup",
+            "nonce",
+        ):
+            self.assertRegex(offer[field], r"^[0-9]+$")
         self.assertEqual(offer["reporter"], ADDRESS("0"))
         self.assertEqual(offer["providerMaxFixedLockup"], "0")
         self.assertRegex(rendered["pricingData"], r"^0x[0-9a-f]{128}$")
         for field in ("serviceId", "serviceType", "pricingDataHash", "termsHash"):
             self.assertRegex(offer[field], r"^0x[0-9a-f]{64}$")
+
+        too_large = dict(CONFIG)
+        too_large["validUntilEpoch"] = 1 << 64
+        with self.assertRaisesRegex(ValueError, "uint64"):
+            render_offer(self.product, self.terms, too_large)
 
         bad = dict(CONFIG)
         bad["beneficiary"] = ADDRESS("0")

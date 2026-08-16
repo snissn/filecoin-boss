@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { buildSubgraphConfig } from '../src/manifest-config.mjs'
+import {
+  buildSubgraphConfig,
+  renderSubgraphYaml,
+  SUBSCRIPTION_ACCEPTED_SIGNATURE,
+} from '../src/manifest-config.mjs'
 
 const authority = {
   protocolCommit: '4a7bd35801ea6bc0521f942f48a9b7a713172bc0',
@@ -54,7 +59,18 @@ test('derives every indexed address and its own deployment block from one verifi
   })
 })
 
-test('fails closed on source-authority drift, zero addresses, or unsupported networks', () => {
+test('binds SubscriptionAccepted to the exact packaged BossAccount ABI', () => {
+  const abi = JSON.parse(readFileSync(new URL('../../contracts/abi/BossAccount.json', import.meta.url), 'utf8'))
+  const event = abi.find((entry) => entry.type === 'event' && entry.name === 'SubscriptionAccepted')
+  assert.ok(event)
+  const signature = `${event.name}(${event.inputs
+    .map((input) => `${input.indexed ? 'indexed ' : ''}${input.type}`)
+    .join(',')})`
+  assert.equal(SUBSCRIPTION_ACCEPTED_SIGNATURE, signature)
+  assert.match(renderSubgraphYaml(buildSubgraphConfig(manifest, authority)), new RegExp(escapeRegex(signature)))
+})
+
+test('fails closed on source-authority drift, zero addresses, unsupported networks, or network/chain mismatches', () => {
   assert.throws(() => buildSubgraphConfig({ ...manifest, protocolCommit: '0'.repeat(40) }, authority))
   assert.throws(() =>
     buildSubgraphConfig(
@@ -69,4 +85,11 @@ test('fails closed on source-authority drift, zero addresses, or unsupported net
     )
   )
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'unknown-network' }, authority))
+  assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin', chainId: 314159 }, authority))
+  assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin-testnet', chainId: 314 }, authority))
+  assert.doesNotThrow(() => buildSubgraphConfig({ ...manifest, network: 'localhost', chainId: 31337 }, authority))
 })
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}

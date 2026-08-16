@@ -87,7 +87,7 @@ test('fails closed on source-authority drift, zero addresses, unsupported networ
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'unknown-network' }, authority))
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin', chainId: 314159 }, authority))
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin-testnet', chainId: 314 }, authority))
-  assert.doesNotThrow(() => buildSubgraphConfig({ ...manifest, network: 'localhost', chainId: 31337 }, authority))
+  assert.doesNotThrow(() => buildSubgraphConfig({ ...manifest, network: 'localhost', chainId: 1337 }, authority))
 })
 
 function escapeRegex(value) {

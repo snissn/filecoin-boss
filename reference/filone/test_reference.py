@@ -32,7 +32,6 @@ TRANSACTION_STAGES = (
     "approveOperator",
     "createAccount",
     "acceptOffer",
-    "activate",
     "syncRate",
     "settle",
     "pause",
@@ -104,6 +103,7 @@ class FiloneReferenceTest(unittest.TestCase):
         self.assertEqual(rendered["chainId"], 314159)
         self.assertEqual(offer["billingKind"], 1)
         self.assertEqual(offer["assuranceKind"], 0)
+        self.assertEqual(offer["activationKind"], 0)
         self.assertEqual(offer["reporter"], ADDRESS("0"))
         self.assertEqual(offer["providerMaxFixedLockup"], "0")
         self.assertRegex(rendered["pricingData"], r"^0x[0-9a-f]{128}$")
@@ -129,9 +129,16 @@ class FiloneReferenceTest(unittest.TestCase):
         )
 
         mismatch = copy.deepcopy(evidence)
-        mismatch["transactions"]["activate"]["receipt"]["transactionHash"] = HASH("e")
-        with self.assertRaisesRegex(ValueError, "activate"):
+        mismatch["transactions"]["acceptOffer"]["receipt"]["transactionHash"] = HASH("e")
+        with self.assertRaisesRegex(ValueError, "acceptOffer"):
             validate_evidence(rendered, mismatch)
+
+        impossible_activation = copy.deepcopy(evidence)
+        impossible_activation["transactions"]["activate"] = copy.deepcopy(
+            impossible_activation["transactions"]["acceptOffer"]
+        )
+        with self.assertRaisesRegex(ValueError, "activate"):
+            validate_evidence(rendered, impossible_activation)
 
         unknown = copy.deepcopy(evidence)
         unknown["unexpected"] = True

@@ -38,3 +38,5 @@ jobs:
           node-version: 24
       - name: Run fixed A10 behavior contract
         run: npm test --prefix packages/subgraph
+      - name: Replay 100,000 deterministic events
+        run: npm run benchmark --prefix packages/subgraph

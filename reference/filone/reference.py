@@ -42,7 +42,7 @@ CONFIG_KEYS = {
     "offerVersion", "validAfterEpoch", "validUntilEpoch", "nonce", "providerMaxRatePerEpoch",
 }
 TRANSACTIONS = {
-    "fund", "approveOperator", "createAccount", "acceptOffer", "activate", "syncRate", "settle", "pause", "terminate",
+    "fund", "approveOperator", "createAccount", "acceptOffer", "syncRate", "settle", "pause", "terminate",
 }
 OBSERVATIONS = {
     "deployment", "bossState", "payRail", "baseFwss", "subgraph", "synapseSdk", "filecoinPin", "explorer",
@@ -127,7 +127,7 @@ def keccak(payload):
 
 
 def load_product(path):
-    product = json.loads(Path(path).read_text())
+    product = json.loads(Path(path).read_text(encoding="utf-8"))
     exact_keys(product, set(PRODUCT_POLICY) | PRODUCT_NUMBERS, "product")
     for key, expected in PRODUCT_POLICY.items():
         if product[key] != expected:
@@ -249,7 +249,7 @@ def validate_evidence(rendered, evidence):
 
 
 def read_json(path):
-    value = json.loads(Path(path).read_text())
+    value = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return value
@@ -269,7 +269,7 @@ def main():
     args = parser.parse_args()
     if args.command == "render":
         result = render_offer(load_product(args.product), Path(args.terms).read_bytes(), read_json(args.config))
-        Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+        Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     else:
         print(json.dumps(validate_evidence(read_json(args.offer), read_json(args.evidence)), sort_keys=True))
 

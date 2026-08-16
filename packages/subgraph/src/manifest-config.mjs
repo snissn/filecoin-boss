@@ -3,7 +3,14 @@ const HASH = /^0x[0-9a-fA-F]{64}$/
 const COMMIT = /^[0-9a-f]{40}$/
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`
 const SUPPORTED_NETWORKS = new Set(['filecoin', 'filecoin-testnet', 'localhost'])
+const NETWORK_CHAIN_IDS = new Map([
+  ['filecoin', 314],
+  ['filecoin-testnet', 314159],
+])
 const REQUIRED_CONTRACTS = ['BossFactory', 'BossServiceRegistry', 'BossAdapterRegistry', 'BossBundles', 'BossStateView']
+
+export const SUBSCRIPTION_ACCEPTED_SIGNATURE =
+  'SubscriptionAccepted(indexed bytes32,indexed address,indexed bytes32,bytes32,uint256,address,address,uint256,address,address,address,address,bytes32,bytes32,bytes32,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'
 
 export function buildSubgraphConfig(manifest, authority) {
   requireObject(manifest, 'manifest')
@@ -11,6 +18,10 @@ export function buildSubgraphConfig(manifest, authority) {
   if (manifest.schemaVersion !== 1) throw new Error('Unsupported Boss deployment schema version')
   if (!SUPPORTED_NETWORKS.has(manifest.network)) throw new Error(`Unsupported Graph network: ${manifest.network}`)
   if (!Number.isSafeInteger(manifest.chainId) || manifest.chainId <= 0) throw new Error('chainId must be a positive safe integer')
+  const expectedChainId = NETWORK_CHAIN_IDS.get(manifest.network)
+  if (expectedChainId !== undefined && manifest.chainId !== expectedChainId) {
+    throw new Error(`Graph network ${manifest.network} requires chainId ${expectedChainId}`)
+  }
   if (!COMMIT.test(manifest.protocolCommit) || manifest.protocolCommit !== authority.protocolCommit) {
     throw new Error('Boss protocol commit does not match packaged artifact authority')
   }
@@ -156,7 +167,7 @@ templates:
         - name: BossAccount
           file: ../contracts/abi/BossAccount.json
       eventHandlers:
-        - event: SubscriptionAccepted(indexed bytes32,indexed address,indexed bytes32,bytes32,address,address,uint256,address,address,address,address,address,bytes32,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+        - event: ${SUBSCRIPTION_ACCEPTED_SIGNATURE}
           handler: handleSubscriptionAccepted
         - event: ProviderActivationAcknowledged(indexed bytes32,bytes32)
           handler: handleProviderActivationAcknowledged

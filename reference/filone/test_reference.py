@@ -1,6 +1,7 @@
 import copy
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -95,6 +96,23 @@ class FiloneReferenceTest(unittest.TestCase):
         self.assertEqual(self.product["baseStorage"], "UNCHANGED_FWSS_RAIL")
         self.assertEqual(quote_rate_per_epoch(self.product, 1 << 40), 28_819_444_444_444)
         self.assertEqual(quote_rate_per_epoch(self.product, 2 << 40), 57_638_888_888_888)
+
+    def test_product_policy_rejects_boolean_integer_aliases(self):
+        product = json.loads((HERE / "product.json").read_text(encoding="utf-8"))
+        for field, invalid in (
+            ("schemaVersion", True),
+            ("billingKindCode", True),
+            ("assuranceKindCode", False),
+            ("commissionBps", False),
+            ("pauseAllowed", 1),
+        ):
+            mutated = copy.deepcopy(product)
+            mutated[field] = invalid
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "product.json"
+                path.write_text(json.dumps(mutated), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, field):
+                    load_product(path)
 
     def test_rendered_offer_binds_exact_terms_pricing_and_authority(self):
         rendered = render_offer(self.product, self.terms, CONFIG)

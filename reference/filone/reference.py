@@ -167,8 +167,9 @@ def load_product(path):
     product = json.loads(Path(path).read_text(encoding="utf-8"))
     exact_keys(product, set(PRODUCT_POLICY) | PRODUCT_NUMBERS, "product")
     for key, expected in PRODUCT_POLICY.items():
-        if product[key] != expected:
-            raise ValueError(f"product.{key} must equal {expected!r}")
+        actual = product[key]
+        if type(actual) is not type(expected) or actual != expected:
+            raise ValueError(f"product.{key} must equal {expected!r} with the exact JSON type")
     price = uint(product["grossPricePerTiBPerPeriod"], "product.grossPricePerTiBPerPeriod", positive=True)
     if product["grossPricePerTiBPerPeriod"] != str(price):
         raise ValueError("product.grossPricePerTiBPerPeriod must use canonical decimal form")

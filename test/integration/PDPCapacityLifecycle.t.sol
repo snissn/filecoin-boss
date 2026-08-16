@@ -250,6 +250,25 @@ contract PDPCapacityLifecycleTest {
         require(account.getSubscription(activeId).state == BossTypes.SubscriptionState.ACTIVE, "resume failed");
     }
 
+    function testCapacityAcceptsCancellableOnlyAssurance() public {
+        BossTypes.AcceptanceInput memory input = _input(11, type(uint256).max);
+        input.offer.assuranceKind = BossTypes.AssuranceKind.CANCELLABLE_ONLY;
+        input.providerSignature = _signOffer(input.offer);
+
+        (bytes32 subscriptionId,) = account.acceptOffer(input);
+        require(
+            account.getSubscription(subscriptionId).assuranceKind == BossTypes.AssuranceKind.CANCELLABLE_ONLY,
+            "assurance not retained"
+        );
+    }
+
+    function testCapacityStillRejectsZeroQuoteTtl() public {
+        BossTypes.AcceptanceInput memory input = _input(12, type(uint256).max);
+        input.offer.quoteTtlEpochs = 0;
+        input.providerSignature = _signOffer(input.offer);
+        _mustFail(abi.encodeCall(BossAccount.acceptOffer, (input)));
+    }
+
     function testCapacityRejectsNonEmptyResourceData() public {
         BossTypes.AcceptanceInput memory input = _input(9, type(uint256).max);
         input.resourceData = hex"01";

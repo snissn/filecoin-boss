@@ -40,7 +40,7 @@ python3 reference/filone/reference.py render \
   --output /path/to/rendered-offer.json
 ```
 
-The renderer signs and broadcasts nothing. It commits the raw `terms.md` bytes and the exact 64-byte capacity-pricing tuple using Ethereum Keccak-256 from the repository's existing Foundry `cast` tool.
+The renderer signs and broadcasts nothing. It commits the raw `terms.md` bytes and the exact 64-byte capacity-pricing tuple using Ethereum Keccak-256 from the repository's existing Foundry `cast` tool. The rendered envelope serializes `chainId` as canonical decimal text so every valid uint64 value remains exact in JavaScript and other JSON consumers. The evidence document uses the same representation.
 
 `renderedOfferSha256` is the SHA-256 digest of canonical JSON: keys sorted, UTF-8 encoded, and no insignificant whitespace. It is deliberately independent of pretty-printing. Compute it with the package's `document_sha256` helper rather than `sha256sum` over the rendered file bytes.
 
@@ -51,6 +51,8 @@ python3 reference/filone/reference.py validate-evidence \
   --offer /path/to/rendered-offer.json \
   --evidence /path/to/evidence.json
 ```
+
+Before evidence is admitted, the validator reloads the committed product and raw terms, validates the complete rendered envelope and service-offer key set, and recomputes the service, pricing, and terms commitments. A truncated offer or a document whose digest was merely recomputed is rejected.
 
 A successful result means only that the bounded document is eligible for an independent verifier. It always returns:
 

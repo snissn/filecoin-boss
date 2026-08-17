@@ -11,11 +11,13 @@ from pathlib import Path
 ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
 HASH = re.compile(r"^0x[0-9a-fA-F]{64}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+PRICING_DATA = re.compile(r"^0x[0-9a-f]{128}$")
 ZERO_ADDRESS = "0x" + "0" * 40
 ZERO_HASH = "0x" + "0" * 64
 UINT64_MAX = (1 << 64) - 1
 UINT256_MAX = (1 << 256) - 1
 TIB = 1 << 40
+REFERENCE_DIR = Path(__file__).resolve().parent
 
 PRODUCT_POLICY = {
     "schemaVersion": 1,
@@ -51,6 +53,37 @@ CONFIG_KEYS = {
     "validUntilEpoch",
     "nonce",
     "providerMaxRatePerEpoch",
+}
+RENDERED_KEYS = {"schemaVersion", "productId", "chainId", "pricingData", "termsSha256", "serviceOffer"}
+SERVICE_OFFER_KEYS = {
+    "serviceId",
+    "offerVersion",
+    "provider",
+    "signingKey",
+    "beneficiary",
+    "reporter",
+    "token",
+    "resourceAdapter",
+    "pricingAdapter",
+    "serviceType",
+    "billingKind",
+    "assuranceKind",
+    "dependencyKind",
+    "activationKind",
+    "terminationBillingKind",
+    "pricingDataHash",
+    "termsHash",
+    "accessScopeHash",
+    "validAfterEpoch",
+    "validUntilEpoch",
+    "requiredLockupPeriod",
+    "quoteTtlEpochs",
+    "commissionBps",
+    "commissionRecipient",
+    "pauseAllowed",
+    "providerMaxRatePerEpoch",
+    "providerMaxFixedLockup",
+    "nonce",
 }
 TRANSACTIONS = {
     "fund",
@@ -119,6 +152,15 @@ def uint64(value, label, *, positive=False):
     return number
 
 
+def canonical_uint_text(value, label, *, bits=256, positive=False):
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be canonical decimal text")
+    number = uint64(value, label, positive=positive) if bits == 64 else uint(value, label, positive=positive)
+    if value != str(number):
+        raise ValueError(f"{label} must be canonical decimal text")
+    return number
+
+
 def address(value, label):
     if not isinstance(value, str) or not ADDRESS.fullmatch(value):
         raise ValueError(f"{label} must be an EVM address")
@@ -126,6 +168,15 @@ def address(value, label):
     if value == ZERO_ADDRESS:
         raise ValueError(f"{label} must be nonzero")
     return value
+
+
+def bytes32_hex(value, label):
+    if not isinstance(value, str) or not HASH.fullmatch(value):
+        raise ValueError(f"{label} must be a bytes32 value")
+    normalized = value.lower()
+    if value != normalized:
+        raise ValueError(f"{label} must use lowercase hexadecimal")
+    return normalized
 
 
 def tx_hash(value, label):
@@ -179,9 +230,16 @@ def load_product(path):
     return product
 
 
-def quote_rate_per_epoch(product, size_bytes):
+def capacity_pricing_bytes(product):
     price = uint(product["grossPricePerTiBPerPeriod"], "grossPricePerTiBPerPeriod", positive=True)
     period = uint64(product["periodEpochs"], "periodEpochs", positive=True)
+    return price.to_bytes(32, "big") + period.to_bytes(32, "big")
+
+
+def quote_rate_per_epoch(product, size_bytes):
+    pricing = capacity_pricing_bytes(product)
+    price = int.from_bytes(pricing[:32], "big")
+    period = int.from_bytes(pricing[32:], "big")
     return uint(size_bytes, "sizeBytes") * price // (TIB * period)
 
 
@@ -200,12 +258,10 @@ def render_offer(product, terms, config):
     if config["providerMaxRatePerEpoch"] != str(max_rate):
         raise ValueError("providerMaxRatePerEpoch must use canonical decimal form")
 
-    price = uint(product["grossPricePerTiBPerPeriod"], "grossPricePerTiBPerPeriod", positive=True)
-    period = uint64(product["periodEpochs"], "periodEpochs", positive=True)
     lockup_period = uint64(product["requiredLockupPeriod"], "requiredLockupPeriod", positive=True)
     quote_ttl = uint64(product["quoteTtlEpochs"], "quoteTtlEpochs", positive=True)
     commission_bps = uint(product["commissionBps"], "commissionBps")
-    pricing_bytes = price.to_bytes(32, "big") + period.to_bytes(32, "big")
+    pricing_bytes = capacity_pricing_bytes(product)
     offer = {
         "serviceId": keccak(product["productId"].encode()),
         "offerVersion": str(offer_version),
@@ -239,20 +295,98 @@ def render_offer(product, terms, config):
     return {
         "schemaVersion": 1,
         "productId": product["productId"],
-        "chainId": chain_id,
+        "chainId": str(chain_id),
         "pricingData": "0x" + pricing_bytes.hex(),
         "termsSha256": hashlib.sha256(terms).hexdigest(),
         "serviceOffer": offer,
     }
 
 
+def validate_rendered_offer(rendered):
+    exact_keys(rendered, RENDERED_KEYS, "rendered offer")
+    if type(rendered["schemaVersion"]) is not int or rendered["schemaVersion"] != 1:
+        raise ValueError("rendered offer.schemaVersion must be the integer 1")
+    if rendered["productId"] != PRODUCT_POLICY["productId"]:
+        raise ValueError("rendered offer.productId does not match the Filone reference")
+    chain_id = canonical_uint_text(rendered["chainId"], "rendered offer.chainId", bits=64, positive=True)
+
+    product = load_product(REFERENCE_DIR / "product.json")
+    terms = (REFERENCE_DIR / "terms.md").read_bytes()
+    pricing_bytes = capacity_pricing_bytes(product)
+    expected_pricing_data = "0x" + pricing_bytes.hex()
+    if not isinstance(rendered["pricingData"], str) or not PRICING_DATA.fullmatch(rendered["pricingData"]):
+        raise ValueError("rendered offer.pricingData must be 64 lowercase bytes")
+    if rendered["pricingData"] != expected_pricing_data:
+        raise ValueError("rendered offer.pricingData does not match the fixed Filone capacity terms")
+    if sha256_hex(rendered["termsSha256"], "rendered offer.termsSha256") != hashlib.sha256(terms).hexdigest():
+        raise ValueError("rendered offer.termsSha256 does not match local raw terms")
+
+    offer = rendered["serviceOffer"]
+    exact_keys(offer, SERVICE_OFFER_KEYS, "rendered offer.serviceOffer")
+    for field in ("provider", "signingKey", "beneficiary", "token", "resourceAdapter", "pricingAdapter"):
+        if offer[field] != address(offer[field], f"serviceOffer.{field}"):
+            raise ValueError(f"serviceOffer.{field} must use lowercase hexadecimal")
+    if offer["reporter"] != ZERO_ADDRESS:
+        raise ValueError("serviceOffer.reporter must be zero for the capacity reference")
+    if offer["commissionRecipient"] != ZERO_ADDRESS:
+        raise ValueError("serviceOffer.commissionRecipient must be zero")
+    if offer["accessScopeHash"] != ZERO_HASH:
+        raise ValueError("serviceOffer.accessScopeHash must be zero")
+
+    expected_hashes = {
+        "serviceId": keccak(product["productId"].encode()),
+        "serviceType": keccak(product["serviceType"].encode()),
+        "pricingDataHash": keccak(pricing_bytes),
+        "termsHash": keccak(terms),
+    }
+    for field, expected in expected_hashes.items():
+        if bytes32_hex(offer[field], f"serviceOffer.{field}") != expected:
+            raise ValueError(f"serviceOffer.{field} does not match the fixed Filone reference")
+
+    fixed_values = {
+        "billingKind": product["billingKindCode"],
+        "assuranceKind": product["assuranceKindCode"],
+        "dependencyKind": product["dependencyKindCode"],
+        "activationKind": product["activationKindCode"],
+        "terminationBillingKind": product["terminationBillingKindCode"],
+        "pauseAllowed": product["pauseAllowed"],
+    }
+    for field, expected in fixed_values.items():
+        if type(offer[field]) is not type(expected) or offer[field] != expected:
+            raise ValueError(f"serviceOffer.{field} does not match the fixed Filone policy")
+
+    canonical_uint_text(offer["offerVersion"], "serviceOffer.offerVersion", bits=64, positive=True)
+    valid_after = canonical_uint_text(offer["validAfterEpoch"], "serviceOffer.validAfterEpoch", bits=64)
+    valid_until = canonical_uint_text(offer["validUntilEpoch"], "serviceOffer.validUntilEpoch", bits=64, positive=True)
+    if valid_until < valid_after:
+        raise ValueError("serviceOffer.validUntilEpoch must not precede validAfterEpoch")
+    canonical_uint_text(offer["nonce"], "serviceOffer.nonce")
+    canonical_uint_text(offer["providerMaxRatePerEpoch"], "serviceOffer.providerMaxRatePerEpoch", positive=True)
+
+    expected_text = {
+        "requiredLockupPeriod": str(uint64(product["requiredLockupPeriod"], "requiredLockupPeriod", positive=True)),
+        "quoteTtlEpochs": str(uint64(product["quoteTtlEpochs"], "quoteTtlEpochs", positive=True)),
+        "commissionBps": str(uint(product["commissionBps"], "commissionBps")),
+        "providerMaxFixedLockup": "0",
+    }
+    for field, expected in expected_text.items():
+        bits = 64 if field in {"requiredLockupPeriod", "quoteTtlEpochs"} else 256
+        canonical_uint_text(offer[field], f"serviceOffer.{field}", bits=bits)
+        if offer[field] != expected:
+            raise ValueError(f"serviceOffer.{field} does not match the fixed Filone policy")
+
+    return {"chainId": chain_id}
+
+
 def validate_evidence(rendered, evidence):
+    rendered_state = validate_rendered_offer(rendered)
     exact_keys(evidence, EVIDENCE_KEYS, "evidence")
     if type(evidence["schemaVersion"]) is not int or evidence["schemaVersion"] != 1:
         raise ValueError("evidence.schemaVersion must be the integer 1")
-    if evidence["productId"] != "filone-managed-storage-v1" or evidence["productId"] != rendered.get("productId"):
+    if evidence["productId"] != "filone-managed-storage-v1" or evidence["productId"] != rendered["productId"]:
         raise ValueError("evidence.productId does not match the Filone reference")
-    if uint64(evidence["chainId"], "evidence.chainId", positive=True) != rendered.get("chainId"):
+    evidence_chain_id = canonical_uint_text(evidence["chainId"], "evidence.chainId", bits=64, positive=True)
+    if evidence_chain_id != rendered_state["chainId"]:
         raise ValueError("evidence.chainId does not match the rendered offer")
     if sha256_hex(evidence["renderedOfferSha256"], "evidence.renderedOfferSha256") != document_sha256(rendered):
         raise ValueError("evidence.renderedOfferSha256 does not match the rendered offer")
@@ -301,8 +435,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     render = commands.add_parser("render")
-    render.add_argument("--product", default=str(Path(__file__).with_name("product.json")))
-    render.add_argument("--terms", default=str(Path(__file__).with_name("terms.md")))
+    render.add_argument("--product", default=str(REFERENCE_DIR / "product.json"))
+    render.add_argument("--terms", default=str(REFERENCE_DIR / "terms.md"))
     render.add_argument("--config", required=True)
     render.add_argument("--output", required=True)
     validate = commands.add_parser("validate-evidence")

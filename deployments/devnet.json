@@ -1,0 +1,88 @@
+{
+  "accountCreationCodeHash": "0x0ceb0dedea4ef4116408608951cc94fac5363e0f61cf2fe4c9ec086da680c7b1",
+  "chainId": 31337,
+  "contracts": {
+    "BossAdapterRegistry": {
+      "address": "0x0165878a594ca255338adfa4d48449f69242eb8f",
+      "deploymentBlock": 9,
+      "deploymentTxHash": "0xe7e7b89732831fea4674a8ff21042575e35fd15f2fff7dd51ec8c1fac80b8914",
+      "runtimeCodeHash": "0x6a231bf3bc61a4c7088df32cefe0583ff48e05d2c9e421f799fd577d3c92b6db"
+    },
+    "BossBundles": {
+      "address": "0x9bd03768a7dcc129555de410ff8e85528a4f88b5",
+      "deploymentBlock": 10,
+      "deploymentTxHash": "0x4553b5dddd72d7f8962055a06aab13500a25eb9dae92dde5bb1bd0f9678ce38c",
+      "runtimeCodeHash": "0xaaa64ac4b22f9e78e1d2ef4e6cc55d5fad2d2a50c2b27e10a7a982080a8b16aa"
+    },
+    "BossFactory": {
+      "address": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853",
+      "deploymentBlock": 10,
+      "deploymentTxHash": "0x4553b5dddd72d7f8962055a06aab13500a25eb9dae92dde5bb1bd0f9678ce38c",
+      "runtimeCodeHash": "0x91e4125bffa31a7e2ecc2112d25228ef3448b379aed2d6d07fccb547d5f62c8f"
+    },
+    "BossServiceRegistry": {
+      "address": "0x5fc8d32690cc91d4c39d9d3abcbd16989f875707",
+      "deploymentBlock": 4,
+      "deploymentTxHash": "0x320620e352e8d5986bc1b71dbe90bfad2aaf026f2b3c0582375d2d21824ea085",
+      "runtimeCodeHash": "0xc36e92685c2c1153ba80b36fd725d523de132db95ac092b9ceeaa7392cb1f186"
+    },
+    "BossStateView": {
+      "address": "0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6",
+      "deploymentBlock": 5,
+      "deploymentTxHash": "0xf4cd6c85f723f734165601af636c6f26d52dbe986cf7a30568b341a74f36aeec",
+      "runtimeCodeHash": "0x23f59f3241dfaf9f105387f20043d585737b6c7d4b41df8e951096686cd2c942"
+    },
+    "CappedMeteredAdapter": {
+      "address": "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e",
+      "deploymentBlock": 7,
+      "deploymentTxHash": "0xfdd5e7add0fc624b3314a7210810f273a628d9f341abf590b30d67aa2d44863b",
+      "runtimeCodeHash": "0x73fc4adbbf2bb5cdce2e6e6ef1b16bb9260cc2d254dee60bcf02f8e19885e4f0"
+    },
+    "FWSSPDPResourceAdapter": {
+      "address": "0xa51c1fc2f0d1a1b8494ed1fe312d7c3a78ed91c0",
+      "deploymentBlock": 7,
+      "deploymentTxHash": "0xc38d070265e8986fd7e1e95d6a4ea72c17647a6406016d320484207da43f42c7",
+      "runtimeCodeHash": "0x655de3f27d3bd359fba8e307eed1c78e6a8ffbe8f45258aa81529e4ec2bc4b1e"
+    },
+    "FlatRateAdapter": {
+      "address": "0x8a791620dd6260079bf849dc5567adc3f2fdc318",
+      "deploymentBlock": 6,
+      "deploymentTxHash": "0xaf47e56573235b766d19e2e5b45713d2a105c9237df6309ee7a43a8a86c9be8a",
+      "runtimeCodeHash": "0xf21226a5efa6bf73ca7f2a0a3780aa485fd106984687f9f3e8aa998973bccf00"
+    },
+    "PDPCapacityAdapter": {
+      "address": "0x610178da211fef7d417bc0e6fed39f05609ad788",
+      "deploymentBlock": 6,
+      "deploymentTxHash": "0xad32e6f33ed6963fd8bfe99bbb8e58382e0a30cb7b921e29095d19b4b96193f5",
+      "runtimeCodeHash": "0x0dbafc70ebdc79fb11bee26677a6efe33ec4899906988d89bee61a1038cc8b38"
+    }
+  },
+  "dependencies": {
+    "filecoinPay": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+    "fwssService": "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0",
+    "fwssStateView": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+    "pdpVerifier": "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
+    "token": "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9"
+  },
+  "dependencyRuntimeCodeHashes": {
+    "filecoinPay": "0x849dc021ec1764a89e362eba6f07b95d6f40cfb2880c92dd71995902c86ec371",
+    "fwssService": "0x3c55237b3869f93f3e570793afec9785f20a4ee7cd0a7798a418838c833228e0",
+    "fwssStateView": "0xbc73bd04ccf4e3e66a60fdf9f1ab9a406b8ae5bd60f3b1b4bbe3bcf6dcf183cb",
+    "pdpVerifier": "0x7b23fbc2ff0c7513764ada224b4b22a73655e3749ee409e0e199cff69e7b54a2",
+    "token": "0x3c55237b3869f93f3e570793afec9785f20a4ee7cd0a7798a418838c833228e0"
+  },
+  "deployer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "deploymentBlock": 4,
+  "deploymentCommit": "38cd3827e6ba4c495eee26013a748eb4ccbb545d",
+  "governance": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "network": "devnet",
+  "protocolCommit": "801d039440c511b5730eb2413867c57cc59ba5b2",
+  "schemaVersion": 1,
+  "smokeAccount": {
+    "address": "0xd0e264ef15d9cc4fa65f959ff5b25f781ea7dcde",
+    "deploymentBlock": 10,
+    "deploymentTxHash": "0x4553b5dddd72d7f8962055a06aab13500a25eb9dae92dde5bb1bd0f9678ce38c",
+    "owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "runtimeCodeHash": "0x4fc64506009f81f430cac6613d1fc1f4c8af56bda82818c688cd791fc50035f5"
+  }
+}

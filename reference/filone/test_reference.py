@@ -170,6 +170,10 @@ class FiloneReferenceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "beneficiary"):
             render_offer(self.product, self.terms, bad)
 
+    def test_render_rejects_terms_bytes_outside_fixed_v1_commitment(self):
+        with self.assertRaisesRegex(ValueError, "terms"):
+            render_offer(self.product, self.terms + b"\n", CONFIG)
+
     def test_evidence_requires_canonical_text_chain_id(self):
         rendered = render_offer(self.product, self.terms, CONFIG)
         evidence = valid_evidence(rendered)

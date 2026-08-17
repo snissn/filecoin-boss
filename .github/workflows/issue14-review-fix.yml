@@ -1,0 +1,90 @@
+name: Finalize A12 review fixes
+
+on:
+  push:
+    branches:
+      - gpt56/issue-14-filone-pilot-release-evidence
+    paths:
+      - .github/workflows/issue14-review-fix.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue14-filone-review-fix
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: gpt56/issue-14-filone-pilot-release-evidence
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Merge repaired protocol base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+          test "$(git -C lib/filecoin-pay rev-parse HEAD)" = "04ded6af6c15c4b5d98545f393dc656004d4aede"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Publish test-first boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/issue14-review-red.py
+          python3 -m py_compile reference/filone/test_reference.py
+          git add reference/filone/test_reference.py
+          git diff --cached --check
+          git commit -m "test(reference): define complete BigInt-safe offer evidence"
+
+      - name: Prove tests fail against pre-repair renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python3 -m unittest -v reference/filone/test_reference.py > /tmp/a12-red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/a12-red.log
+          test "$status" -ne 0
+          grep -Eq 'test_rendered_offer_binds_exact_terms_pricing_and_authority|test_evidence_validates_complete_rendered_offer' /tmp/a12-red.log
+
+      - name: Apply bounded renderer and evidence repair
+        run: python3 .github/issue14-review-fix.py
+
+      - name: Qualify exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile reference/filone/reference.py reference/filone/test_reference.py
+          python3 -m unittest -v reference/filone/test_reference.py
+          forge fmt --check
+          forge build --sizes
+          forge test -vvv
+          git diff --check
+
+      - name: Publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/issue14-review-red.py \
+            .github/issue14-review-fix.py \
+            .github/workflows/issue14-review-fix.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(reference): validate complete Filone offer envelope"
+          git push origin HEAD:gpt56/issue-14-filone-pilot-release-evidence

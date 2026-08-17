@@ -2,10 +2,12 @@ const ADDRESS = /^0x[0-9a-fA-F]{40}$/
 const HASH = /^0x[0-9a-fA-F]{64}$/
 const COMMIT = /^[0-9a-f]{40}$/
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}`
+const ZERO_HASH = `0x${'0'.repeat(64)}`
 const SUPPORTED_NETWORKS = new Set(['filecoin', 'filecoin-testnet', 'localhost'])
 const NETWORK_CHAIN_IDS = new Map([
   ['filecoin', 314],
   ['filecoin-testnet', 314159],
+  ['localhost', 1337],
 ])
 const REQUIRED_CONTRACTS = ['BossFactory', 'BossServiceRegistry', 'BossAdapterRegistry', 'BossBundles', 'BossStateView']
 
@@ -200,8 +202,12 @@ templates:
 function validateDeployment(name, deployment) {
   requireObject(deployment, `manifest.contracts.${name}`)
   if (!ADDRESS.test(deployment.address) || equalHex(deployment.address, ZERO_ADDRESS)) throw new Error(`${name} has an invalid address`)
-  if (!HASH.test(deployment.runtimeCodeHash)) throw new Error(`${name} has an invalid runtimeCodeHash`)
-  if (!HASH.test(deployment.deploymentTxHash)) throw new Error(`${name} has an invalid deploymentTxHash`)
+  if (!HASH.test(deployment.runtimeCodeHash) || equalHex(deployment.runtimeCodeHash, ZERO_HASH)) {
+    throw new Error(`${name} has an invalid runtimeCodeHash`)
+  }
+  if (!HASH.test(deployment.deploymentTxHash) || equalHex(deployment.deploymentTxHash, ZERO_HASH)) {
+    throw new Error(`${name} has an invalid deploymentTxHash`)
+  }
   if (!Number.isSafeInteger(deployment.deploymentBlock) || deployment.deploymentBlock < 0) throw new Error(`${name} has an invalid deploymentBlock`)
 }
 

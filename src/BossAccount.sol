@@ -693,10 +693,7 @@ contract BossAccount is IFilecoinPayValidator, IBossAccountEvents {
         if (offer.billingKind != BossTypes.BillingKind.STREAM_FLAT && !isCapacity && !isMetered) {
             revert UnsupportedBillingKind();
         }
-        if (
-            isCapacity
-                && (offer.quoteTtlEpochs == 0 || offer.assuranceKind != BossTypes.AssuranceKind.ONCHAIN_DETERMINISTIC)
-        ) revert InvalidOffer();
+        if (isCapacity && offer.quoteTtlEpochs == 0) revert InvalidOffer();
         if (
             isMetered
                 && (offer.reporter == address(0) || offer.assuranceKind != BossTypes.AssuranceKind.TRUSTED_METERING)

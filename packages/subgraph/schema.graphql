@@ -7,7 +7,7 @@ enum SubscriptionState {
   EXHAUSTED
 }
 
-type BossAccount @entity {
+type BossAccount @entity(immutable: true) {
   id: ID!
   chainId: BigInt!
   factory: Bytes!
@@ -25,7 +25,7 @@ type BossAccount @entity {
   resourceSubscriptions: [ResourceSubscription!]! @derivedFrom(field: "account")
 }
 
-type Provider @entity {
+type Provider @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   serviceRegistry: Bytes!
@@ -39,7 +39,7 @@ type Provider @entity {
   revokedNonces: [ProviderOfferNonce!]! @derivedFrom(field: "provider")
 }
 
-type ProviderSigner @entity {
+type ProviderSigner @entity(immutable: false) {
   id: ID!
   provider: Provider!
   signingKey: Bytes!
@@ -49,7 +49,7 @@ type ProviderSigner @entity {
   updatedTransaction: Bytes!
 }
 
-type ProviderOfferNonce @entity {
+type ProviderOfferNonce @entity(immutable: true) {
   id: ID!
   provider: Provider!
   nonce: BigInt!
@@ -59,7 +59,7 @@ type ProviderOfferNonce @entity {
   updatedTransaction: Bytes!
 }
 
-type BossService @entity {
+type BossService @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   serviceRegistry: Bytes!
@@ -75,7 +75,7 @@ type BossService @entity {
   updatedTransaction: Bytes!
 }
 
-type Adapter @entity {
+type Adapter @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   adapterRegistry: Bytes!
@@ -90,7 +90,7 @@ type Adapter @entity {
   updatedTransaction: Bytes!
 }
 
-type Governance @entity {
+type Governance @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   adapterRegistry: Bytes!
@@ -100,7 +100,7 @@ type Governance @entity {
   updatedTransaction: Bytes!
 }
 
-type Bundle @entity {
+type Bundle @entity(immutable: true) {
   id: ID!
   chainId: BigInt!
   bundleRegistry: Bytes!
@@ -117,7 +117,7 @@ type Bundle @entity {
   components: [BundleComponent!]! @derivedFrom(field: "bundle")
 }
 
-type BundleComponent @entity {
+type BundleComponent @entity(immutable: true) {
   id: ID!
   bundle: Bundle!
   subscriptionId: Bytes!
@@ -126,7 +126,7 @@ type BundleComponent @entity {
   createdTransaction: Bytes!
 }
 
-type Subscription @entity {
+type Subscription @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   account: BossAccount!
@@ -185,7 +185,7 @@ type Subscription @entity {
   budgetUpdates: [BudgetUpdate!]! @derivedFrom(field: "subscription")
 }
 
-type RailSubscription @entity {
+type RailSubscription @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   filecoinPay: Bytes!
@@ -203,7 +203,7 @@ type RailSubscription @entity {
   createdTransaction: Bytes!
 }
 
-type ResourceSubscription @entity {
+type ResourceSubscription @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   account: BossAccount!
@@ -216,7 +216,7 @@ type ResourceSubscription @entity {
   createdTransaction: Bytes!
 }
 
-type UsageClaim @entity {
+type UsageClaim @entity(immutable: true) {
   id: ID!
   chainId: BigInt!
   bossAccount: Bytes!
@@ -233,7 +233,7 @@ type UsageClaim @entity {
   logIndex: BigInt!
 }
 
-type RateUpdate @entity {
+type RateUpdate @entity(immutable: true) {
   id: ID!
   subscription: Subscription!
   subscriptionId: Bytes!
@@ -247,7 +247,7 @@ type RateUpdate @entity {
   logIndex: BigInt!
 }
 
-type BudgetUpdate @entity {
+type BudgetUpdate @entity(immutable: true) {
   id: ID!
   subscription: Subscription!
   subscriptionId: Bytes!
@@ -258,7 +258,7 @@ type BudgetUpdate @entity {
   logIndex: BigInt!
 }
 
-type LifecycleEvent @entity {
+type LifecycleEvent @entity(immutable: true) {
   id: ID!
   chainId: BigInt!
   contractAddress: Bytes!

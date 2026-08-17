@@ -48,7 +48,26 @@ jobs:
         run: npm run test:unit --prefix packages/subgraph
 
       - name: Generate and compile the Graph package
-        run: npm run build --prefix packages/subgraph
+        id: graph-build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build --prefix packages/subgraph 2>&1 | tee /tmp/a10-graph-build.log
+
+      - name: Upload exact Graph diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a10-graph-diagnostic
+          if-no-files-found: warn
+          path: |
+            /tmp/a10-graph-build.log
+            packages/subgraph/subgraph.yaml
+
+      - name: Enforce Graph build result
+        if: steps.graph-build.outcome != 'success'
+        run: exit 1
 
       - name: Run Matchstick lifecycle tests
         run: npm run test:matchstick --prefix packages/subgraph

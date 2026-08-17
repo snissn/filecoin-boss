@@ -13,6 +13,7 @@ on:
       - "deployments/**"
       - "foundry.toml"
       - ".gitmodules"
+      - "README.md"
       - "docs/DEPLOYMENT.md"
       - ".github/workflows/deployment.yml"
   pull_request:
@@ -27,6 +28,7 @@ on:
       - "deployments/**"
       - "foundry.toml"
       - ".gitmodules"
+      - "README.md"
       - "docs/DEPLOYMENT.md"
       - ".github/workflows/deployment.yml"
   workflow_dispatch:
@@ -113,5 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           test ! -e deployments/calibration.json
-          ! grep -R --line-number --exclude=schema.json \
-            'BOSS_DEPLOYER_PRIVATE_KEY=' deployments docs script scripts
+          test ! -e .github/workflows/a9-r1-bootstrap.yml
+          ! grep -Eq '0x[0-9a-fA-F]{64}' \
+            scripts/deploy-network.sh scripts/deploy-devnet.sh scripts/deploy-calibration.sh
+          ! grep -Eq '^export BOSS_[A-Z_]+=\$\{[^}]*:-' scripts/deploy-network.sh

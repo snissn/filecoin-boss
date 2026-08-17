@@ -65,7 +65,7 @@ fi
 export BOSS_SUITE_OUTPUT=deployments/.local-suite.json
 rm -f "$BOSS_SUITE_OUTPUT"
 rm -rf "broadcast/Deploy.s.sol/$BOSS_CHAIN_ID"
-forge script script/Deploy.s.sol:Deploy --rpc-url "$BOSS_RPC_URL" --broadcast -vvv
+forge script script/Deploy.s.sol:Deploy --rpc-url "$BOSS_RPC_URL" --broadcast --slow -vvv
 
 broadcast="broadcast/Deploy.s.sol/$BOSS_CHAIN_ID/run-latest.json"
 test -s "$broadcast"

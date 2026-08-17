@@ -58,7 +58,7 @@ fi
 
 rm -f "$BOSS_SUITE_OUTPUT" "$generated_output"
 rm -rf "broadcast/DeployLocal.s.sol/$BOSS_CHAIN_ID"
-forge script script/DeployLocal.s.sol:DeployLocal --rpc-url "$BOSS_RPC_URL" --broadcast -vvv
+forge script script/DeployLocal.s.sol:DeployLocal --rpc-url "$BOSS_RPC_URL" --broadcast --slow -vvv
 broadcast="broadcast/DeployLocal.s.sol/$BOSS_CHAIN_ID/run-latest.json"
 test -s "$broadcast"
 test -s "$BOSS_SUITE_OUTPUT"

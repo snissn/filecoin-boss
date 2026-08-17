@@ -6,7 +6,7 @@ It is designed to let a user attach independently operated and independently bil
 
 The protocol reuses Filecoin Pay rather than introducing a new payment rail. Each independently governed service receives its own bounded Filecoin Pay rail and lifecycle.
 
-> **Status:** the protocol contracts are implemented through the A8 public-surface gate. Deployment, indexing, downstream application integration, security review, and release evidence remain incomplete; the repository is not audited or approved for production use.
+> **Status:** repository-local contract, artifact, indexing, and FilOne pilot-validation surfaces are implemented through the A12 deterministic gate. Public-network deployment, downstream release evidence, security review, and release approval remain incomplete; the repository is not audited or approved for production use.
 
 ## Document set
 

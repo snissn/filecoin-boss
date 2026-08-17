@@ -42,7 +42,7 @@ jobs:
           node-version: 24
 
       - name: Install subgraph dependencies
-        run: npm install --prefix packages/subgraph
+        run: npm ci --prefix packages/subgraph
 
       - name: Run deployment and replay unit contracts
         run: npm run test:unit --prefix packages/subgraph
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload exact A10 diagnostic
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: a10-subgraph-diagnostic
           if-no-files-found: warn

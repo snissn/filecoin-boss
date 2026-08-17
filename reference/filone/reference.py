@@ -188,7 +188,10 @@ def bytes32_hex(value, label):
 def tx_hash(value, label):
     if not isinstance(value, str) or not HASH.fullmatch(value):
         raise ValueError(f"{label} must be a bytes32 transaction hash")
-    return value.lower()
+    normalized = value.lower()
+    if normalized == ZERO_HASH:
+        raise ValueError(f"{label} must be nonzero")
+    return normalized
 
 
 def sha256_hex(value, label):

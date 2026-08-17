@@ -29,6 +29,9 @@ class Fixtures {
   static SUBSCRIPTION: Bytes = Bytes.fromHexString(
     "0x0202020202020202020202020202020202020202020202020202020202020202",
   ) as Bytes;
+  static PENDING_SUBSCRIPTION: Bytes = Bytes.fromHexString(
+    "0x1212121212121212121212121212121212121212121212121212121212121212",
+  ) as Bytes;
   static OFFER: Bytes = Bytes.fromHexString(
     "0x0303030303030303030303030303030303030303030303030303030303030303",
   ) as Bytes;
@@ -87,9 +90,9 @@ function createAccount(): void {
   handleBossAccountCreated(event);
 }
 
-function acceptMeteredSubscription(): void {
+function acceptSubscription(subscriptionId: Bytes, policyWord: BigInt): void {
   const event = mockEvent(Fixtures.ACCOUNT, 2, 0);
-  event.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+  event.parameters.push(fixedBytes("subscriptionId", subscriptionId));
   event.parameters.push(new ethereum.EventParam("account", ethereum.Value.fromAddress(Fixtures.ACCOUNT)));
   event.parameters.push(fixedBytes("offerHash", Fixtures.OFFER));
   event.parameters.push(fixedBytes("resourceKey", Fixtures.RESOURCE));
@@ -108,7 +111,7 @@ function acceptMeteredSubscription(): void {
   event.parameters.push(fixedBytes("resourceDataHash", Fixtures.RESOURCE_DATA));
   event.parameters.push(fixedBytes("pricingDataHash", Fixtures.PRICING_DATA));
   event.parameters.push(fixedBytes("accessGrantHash", Fixtures.ACCESS_GRANT));
-  event.parameters.push(unsigned("policyWord", BigInt.fromString("1103806726658")));
+  event.parameters.push(unsigned("policyWord", policyWord));
   event.parameters.push(unsigned("maxRatePerEpoch", BigInt.fromI32(0)));
   event.parameters.push(unsigned("maxFixedLockup", BigInt.fromI32(100)));
   event.parameters.push(unsigned("maxSingleCharge", BigInt.fromI32(100)));
@@ -120,6 +123,10 @@ function acceptMeteredSubscription(): void {
     unsigned("acceptanceEpochs", BigInt.fromString("17014118346046923176858079186330320896100")),
   );
   handleSubscriptionAccepted(event);
+}
+
+function acceptMeteredSubscription(): void {
+  acceptSubscription(Fixtures.SUBSCRIPTION, BigInt.fromString("1103806726658"));
 }
 
 function activateSubscription(): void {
@@ -155,10 +162,18 @@ describe("A10 Boss Graph mappings", () => {
     assert.fieldEquals("BossAccount", accountId, "accountVersion", "1");
   });
 
+  test("derives immediate and provider-ack lifecycle state from the accepted policy", () => {
+    createAccount();
+    acceptSubscription(Fixtures.PENDING_SUBSCRIPTION, BigInt.fromString("1103823503874"));
+    const accountId = "1337:" + Fixtures.ACCOUNT.toHexString();
+    const subscriptionId = accountId + ":" + Fixtures.PENDING_SUBSCRIPTION.toHexString();
+    assert.fieldEquals("Subscription", subscriptionId, "activationKind", "1");
+    assert.fieldEquals("Subscription", subscriptionId, "state", "PENDING_ACTIVATION");
+  });
+
   test("reconstructs metered acceptance, rail/resource joins, claims, recovery, and termination", () => {
     createAccount();
     acceptMeteredSubscription();
-    activateSubscription();
 
     const accountId = "1337:" + Fixtures.ACCOUNT.toHexString();
     const subscriptionId = accountId + ":" + Fixtures.SUBSCRIPTION.toHexString();
@@ -168,6 +183,7 @@ describe("A10 Boss Graph mappings", () => {
 
     assert.fieldEquals("Subscription", subscriptionId, "billingKind", "2");
     assert.fieldEquals("Subscription", subscriptionId, "assuranceKind", "2");
+    assert.fieldEquals("Subscription", subscriptionId, "activationKind", "0");
     assert.fieldEquals("Subscription", subscriptionId, "pauseAllowed", "true");
     assert.fieldEquals("Subscription", subscriptionId, "chargeWindowEpochs", "10");
     assert.fieldEquals("Subscription", subscriptionId, "notAfterEpoch", "1000");
@@ -176,6 +192,7 @@ describe("A10 Boss Graph mappings", () => {
     assert.fieldEquals("RailSubscription", railId, "subscriptionId", Fixtures.SUBSCRIPTION.toHexString());
     assert.fieldEquals("ResourceSubscription", resourceId, "active", "true");
 
+    activateSubscription();
     chargeCompleteBudget();
     assert.fieldEquals("Subscription", subscriptionId, "totalRawGross", "120");
     assert.fieldEquals("Subscription", subscriptionId, "totalChargedGross", "100");

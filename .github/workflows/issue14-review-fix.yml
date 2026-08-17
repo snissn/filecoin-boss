@@ -46,7 +46,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile reference/filone/test_reference.py
           set +e
-          python3 -m unittest -v reference/filone/test_reference.py > /tmp/a12-red.log 2>&1
+          python3 -m unittest discover -s reference/filone -p 'test_*.py' -v > /tmp/a12-red.log 2>&1
           status=$?
           set -e
           cat /tmp/a12-red.log
@@ -61,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile reference/filone/reference.py reference/filone/test_reference.py
-          python3 -m unittest -v reference/filone/test_reference.py
+          python3 -m unittest discover -s reference/filone -p 'test_*.py' -v
           forge fmt --check
           forge build --sizes
           forge test -vvv

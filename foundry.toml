@@ -9,7 +9,11 @@ solc = "0.8.30"
 optimizer = true
 optimizer_runs = 1
 via_ir = true
-fs_permissions = [{ access = "read", path = "./test/vectors" }]
+fs_permissions = [
+    { access = "read", path = "./test/vectors" },
+    { access = "read", path = "./out" },
+    { access = "read-write", path = "./deployments" },
+]
 remappings = [
     "filecoin-pay/=lib/filecoin-pay/src/",
     "@openzeppelin/contracts/=lib/filecoin-pay/lib/openzeppelin-contracts/contracts/",

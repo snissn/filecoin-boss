@@ -6,7 +6,7 @@ It is designed to let a user attach independently operated and independently bil
 
 The protocol reuses Filecoin Pay rather than introducing a new payment rail. Each independently governed service receives its own bounded Filecoin Pay rail and lifecycle.
 
-> **Status:** specification and implementation planning. The contracts and APIs described here are not yet production code or audited.
+> **Status:** repository-local contract, artifact, indexing, and FilOne pilot-validation surfaces are implemented through the A12 deterministic gate. Public-network deployment, downstream release evidence, security review, and release approval remain incomplete; the repository is not audited or approved for production use.
 
 ## Document set
 
@@ -17,6 +17,7 @@ The protocol reuses Filecoin Pay rather than introducing a new payment rail. Eac
 | [Implementation draft](docs/FILECOIN_BOSS_IMPLEMENTATION_DRAFT_v0.1.md) | Proposed repository trees, exact components, integration seams, and PR ordering |
 | [API and event draft](docs/FILECOIN_BOSS_API_AND_EVENT_DRAFT_v0.1.md) | Near-source Solidity interfaces, structs, events, TypeScript APIs, and pseudocode |
 | [Test and rollout plan](docs/FILECOIN_BOSS_TEST_AND_ROLLOUT_PLAN_v0.1.md) | Unit, integration, invariant, devnet, Calibration, audit, and release gates |
+| [Deployment guide](docs/DEPLOYMENT.md) | Reproducible local/devnet deployment, manifest generation, verification, and public-network safety boundary |
 | [Human-facing summary](docs/FILECOIN_BOSS_HUMAN_SUMMARY_v0.1.md) | Product and stakeholder explanation |
 | [v0.1 to v0.2 diff](docs/FILECOIN_BOSS_SPEC_v0.1_to_v0.2.diff) | Unified textual revision history |
 | [Archived v0.1 specification](docs/archive/FILECOIN_BOSS_SPEC_v0.1.md) | Original supplied design |

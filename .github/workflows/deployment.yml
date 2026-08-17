@@ -1,0 +1,121 @@
+name: Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "script/**"
+      - "test/deployment/**"
+      - "scripts/deploy-*.sh"
+      - "scripts/finalize-deployment-manifest.py"
+      - "scripts/validate-deployment-manifest.py"
+      - "deployments/**"
+      - "foundry.toml"
+      - ".gitmodules"
+      - "README.md"
+      - "docs/DEPLOYMENT.md"
+      - ".github/workflows/deployment.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "script/**"
+      - "test/deployment/**"
+      - "scripts/deploy-*.sh"
+      - "scripts/finalize-deployment-manifest.py"
+      - "scripts/validate-deployment-manifest.py"
+      - "deployments/**"
+      - "foundry.toml"
+      - ".gitmodules"
+      - "README.md"
+      - "docs/DEPLOYMENT.md"
+      - ".github/workflows/deployment.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-devnet:
+    name: Reproduce exact local deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Verify source locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=04ded6af6c15c4b5d98545f393dc656004d4aede
+          observed=$(git -C lib/filecoin-pay rev-parse HEAD)
+          if [[ "$observed" != "$expected" ]]; then
+            echo "filecoin-pay lock mismatch: expected $expected, observed $observed" >&2
+            exit 1
+          fi
+
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Validate deployment sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge fmt --check
+          forge build --sizes
+          forge test --match-path 'test/deployment/*.t.sol' -vvv
+          python3 -m py_compile \
+            scripts/finalize-deployment-manifest.py \
+            scripts/validate-deployment-manifest.py
+          bash -n scripts/deploy-local-anvil.sh scripts/deploy-network.sh \
+            scripts/deploy-devnet.sh scripts/deploy-calibration.sh
+          python3 scripts/validate-deployment-manifest.py deployments/devnet.json \
+            --expected-network devnet
+
+      - name: Verify manifest source authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=$(jq -er '.deploymentCommit' deployments/devnet.json)
+          git cat-file -e "${source_commit}^{commit}"
+          git merge-base --is-ancestor "$source_commit" HEAD
+          unexpected=$(git diff --name-only "$source_commit" HEAD | \
+            grep -Ev '^(deployments/devnet.json|\.github/workflows/a9-r1-bootstrap.yml)$' || true)
+          if [[ -n "$unexpected" ]]; then
+            echo "build inputs differ from deploymentCommit $source_commit:" >&2
+            printf '%s\n' "$unexpected" >&2
+            exit 1
+          fi
+          test "$(jq -er '.protocolCommit' deployments/devnet.json)" = \
+            "$(jq -er '.sourceCommit' packages/contracts/artifacts.json)"
+          echo "source_commit=$source_commit" >> "$GITHUB_ENV"
+
+      - name: Reproduce and verify local deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          BOSS_DEPLOYMENT_COMMIT="$source_commit" \
+          BOSS_MANIFEST_OUTPUT=deployments/devnet.json \
+          BOSS_CHECK_MANIFEST=true \
+            scripts/deploy-local-anvil.sh
+
+      - name: Preserve public-network boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e deployments/calibration.json
+          test ! -e .github/workflows/a9-r1-bootstrap.yml
+          ! grep -Eq '0x[0-9a-fA-F]{64}' \
+            scripts/deploy-network.sh scripts/deploy-devnet.sh scripts/deploy-calibration.sh
+          ! grep -Eq '^export BOSS_[A-Z_]+=\$\{[^}]*:-' scripts/deploy-network.sh

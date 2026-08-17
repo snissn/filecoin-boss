@@ -77,12 +77,7 @@ contract DeploymentArtifactsTest is Test {
         bytes memory creationCode = type(BossAccount).creationCode;
         accountCreationCodeHash = keccak256(creationCode);
         address smokeAccount = factory.createAccount(
-            smokeOwner,
-            address(filecoinPay),
-            address(serviceRegistry),
-            address(adapterRegistry),
-            1,
-            creationCode
+            smokeOwner, address(filecoinPay), address(serviceRegistry), address(adapterRegistry), 1, creationCode
         );
 
         config = BossDeployment.Config({
@@ -125,10 +120,7 @@ contract DeploymentArtifactsTest is Test {
         bytes32 wrong = bytes32(uint256(1));
         vm.expectRevert(
             abi.encodeWithSelector(
-                BossDeployment.HashMismatch.selector,
-                bytes32("accountCreationCodeHash"),
-                wrong,
-                accountCreationCodeHash
+                BossDeployment.HashMismatch.selector, bytes32("accountCreationCodeHash"), wrong, accountCreationCodeHash
             )
         );
         harness.verify(config, suite, wrong);
@@ -155,10 +147,7 @@ contract DeploymentArtifactsTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                BossDeployment.SmokeAccountMismatch.selector,
-                bytes32("owner"),
-                invalid.smokeOwner,
-                suite.smokeOwner
+                BossDeployment.SmokeAccountMismatch.selector, bytes32("owner"), invalid.smokeOwner, suite.smokeOwner
             )
         );
         harness.verify(config, invalid, accountCreationCodeHash);

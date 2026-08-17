@@ -68,15 +68,10 @@ contract DeploymentConfigTest is Test {
 
     function testValidateRejectsAddressWithoutCode() public {
         BossDeployment.Config memory config = _config();
-        config.pdpVerifier = BossDeployment.Dependency({
-            target: address(0xBEEF),
-            runtimeCodeHash: bytes32(uint256(1))
-        });
+        config.pdpVerifier = BossDeployment.Dependency({target: address(0xBEEF), runtimeCodeHash: bytes32(uint256(1))});
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                BossDeployment.DependencyHasNoCode.selector, bytes32("pdpVerifier"), address(0xBEEF)
-            )
+            abi.encodeWithSelector(BossDeployment.DependencyHasNoCode.selector, bytes32("pdpVerifier"), address(0xBEEF))
         );
         harness.validate(config);
     }
@@ -118,9 +113,7 @@ contract DeploymentConfigTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                BossDeployment.DependencyInterfaceMismatch.selector,
-                bytes32("fwssStateView"),
-                address(invalidStateView)
+                BossDeployment.DependencyInterfaceMismatch.selector, bytes32("fwssStateView"), address(invalidStateView)
             )
         );
         harness.validate(config);

@@ -1,0 +1,118 @@
+name: Export qualified A10 review repair
+
+on:
+  push:
+    branches:
+      - gpt56/issue-12-boss-subgraph-r2
+    paths:
+      - ".github/workflows/a10-review-export.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a10-review-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact trigger
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Verify isolated export trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "3e19dd7c57b2d57e6fb881609a67638d130b466c"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/a10-review-export.yml"
+          test -f .github/workflows/a10-review-repair.yml
+
+      - name: Reconstruct bounded review repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+
+          source = Path(".github/workflows/a10-review-repair.yml").read_text().splitlines()
+          start = source.index("      - name: Apply bounded review repair")
+          run = source.index("        run: |", start)
+          end = source.index("      - name: Generate exact dependency lock", run)
+          block = []
+          for line in source[run + 1 : end]:
+              if line.startswith("          "):
+                  block.append(line[10:])
+              elif line:
+                  raise SystemExit(f"unexpected repair-block indentation: {line!r}")
+              else:
+                  block.append("")
+          Path("/tmp/apply-a10-review-repair.sh").write_text("\n".join(block) + "\n")
+          PY
+          bash /tmp/apply-a10-review-repair.sh
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("packages/subgraph/src/utils.ts")
+          text = path.read_text()
+          old = "railSubscriptionEntityId(filecoinPay: Address, railId: BigInt)"
+          new = "railSubscriptionEntityId(filecoinPay: Bytes, railId: BigInt)"
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one generated rail-key signature")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Generate exact dependency lock
+        working-directory: packages/subgraph
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Validate exact repair
+        working-directory: packages/subgraph
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run test:unit
+          npm run build
+          npm run test:matchstick
+          npm run benchmark
+
+      - name: Record exact file commitments
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "trigger_sha=${GITHUB_SHA}"
+            sha256sum \
+              .github/workflows/a10-subgraph.yml \
+              packages/subgraph/package-lock.json \
+              packages/subgraph/schema.graphql \
+              packages/subgraph/src/account.ts \
+              packages/subgraph/src/utils.ts \
+              packages/subgraph/tests/a10.test.ts
+          } > a10-review-repair-receipt.txt
+
+      - name: Upload exact qualified source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a10-qualified-review-repair
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            .github/workflows/a10-subgraph.yml
+            packages/subgraph/package-lock.json
+            packages/subgraph/schema.graphql
+            packages/subgraph/src/account.ts
+            packages/subgraph/src/utils.ts
+            packages/subgraph/tests/a10.test.ts
+            a10-review-repair-receipt.txt

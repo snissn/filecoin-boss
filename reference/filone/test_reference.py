@@ -184,6 +184,12 @@ class FiloneReferenceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "chainId"):
             validate_evidence(rendered, leading_zero)
 
+    def test_evidence_rejects_uint256_overflow(self):
+        rendered = render_offer(self.product, self.terms, CONFIG)
+        rendered["serviceOffer"]["providerMaxRatePerEpoch"] = str(1 << 256)
+        with self.assertRaisesRegex(ValueError, "uint256"):
+            validate_evidence(rendered, valid_evidence(rendered))
+
     def test_evidence_rejects_incomplete_or_tampered_rendered_offer(self):
         incomplete = {"productId": "filone-managed-storage-v1", "chainId": 314159}
         with self.assertRaisesRegex(ValueError, "rendered"):

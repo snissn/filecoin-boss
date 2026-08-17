@@ -75,7 +75,7 @@ def valid_evidence(rendered):
     return {
         "schemaVersion": 1,
         "productId": "filone-managed-storage-v1",
-        "chainId": 314159,
+        "chainId": rendered["chainId"],
         "renderedOfferSha256": document_sha256(rendered),
         "deploymentManifestSha256": "f" * 64,
         "transactions": transactions,
@@ -118,7 +118,7 @@ class FiloneReferenceTest(unittest.TestCase):
         rendered = render_offer(self.product, self.terms, CONFIG)
         offer = rendered["serviceOffer"]
         self.assertEqual(rendered["productId"], "filone-managed-storage-v1")
-        self.assertEqual(rendered["chainId"], 314159)
+        self.assertEqual(rendered["chainId"], "314159")
         self.assertEqual(offer["billingKind"], 1)
         self.assertEqual(offer["assuranceKind"], 0)
         self.assertEqual(offer["activationKind"], 0)
@@ -140,6 +140,10 @@ class FiloneReferenceTest(unittest.TestCase):
         for field in ("serviceId", "serviceType", "pricingDataHash", "termsHash"):
             self.assertRegex(offer[field], r"^0x[0-9a-f]{64}$")
 
+        max_chain = dict(CONFIG)
+        max_chain["chainId"] = (1 << 64) - 1
+        self.assertEqual(render_offer(self.product, self.terms, max_chain)["chainId"], "18446744073709551615")
+
         too_large = dict(CONFIG)
         too_large["validUntilEpoch"] = 1 << 64
         with self.assertRaisesRegex(ValueError, "uint64"):
@@ -149,6 +153,46 @@ class FiloneReferenceTest(unittest.TestCase):
         bad["beneficiary"] = ADDRESS("0")
         with self.assertRaisesRegex(ValueError, "beneficiary"):
             render_offer(self.product, self.terms, bad)
+
+    def test_evidence_requires_canonical_text_chain_id(self):
+        rendered = render_offer(self.product, self.terms, CONFIG)
+        evidence = valid_evidence(rendered)
+
+        numeric = copy.deepcopy(evidence)
+        numeric["chainId"] = 314159
+        with self.assertRaisesRegex(ValueError, "chainId"):
+            validate_evidence(rendered, numeric)
+
+        leading_zero = copy.deepcopy(evidence)
+        leading_zero["chainId"] = "0314159"
+        with self.assertRaisesRegex(ValueError, "chainId"):
+            validate_evidence(rendered, leading_zero)
+
+    def test_evidence_rejects_incomplete_or_tampered_rendered_offer(self):
+        incomplete = {"productId": "filone-managed-storage-v1", "chainId": 314159}
+        with self.assertRaisesRegex(ValueError, "rendered"):
+            validate_evidence(incomplete, valid_evidence(incomplete))
+
+        rendered = render_offer(self.product, self.terms, CONFIG)
+        for label, mutate in (
+            (
+                "pricingData",
+                lambda value: value.__setitem__("pricingData", "0x" + "00" * 64),
+            ),
+            (
+                "billingKind",
+                lambda value: value["serviceOffer"].__setitem__("billingKind", 2),
+            ),
+            (
+                "termsHash",
+                lambda value: value["serviceOffer"].__setitem__("termsHash", HASH("e")),
+            ),
+        ):
+            tampered = copy.deepcopy(rendered)
+            mutate(tampered)
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(ValueError, label):
+                    validate_evidence(tampered, valid_evidence(tampered))
 
     def test_evidence_is_fail_closed_and_never_self_authorizes_release(self):
         rendered = render_offer(self.product, self.terms, CONFIG)

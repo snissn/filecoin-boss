@@ -52,6 +52,7 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   const account = requireAccount(accountAddress);
   const id = subscriptionEntityId(accountAddress, subscriptionId);
   const policyWord = event.parameters[15].value.toBigInt();
+  const activationKind = byteLane(policyWord, "16777216");
   const capEpochs = event.parameters[21].value.toBigInt();
   const acceptanceEpochs = event.parameters[23].value.toBigInt();
 
@@ -77,7 +78,7 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   subscription.billingKind = byteLane(policyWord, "1");
   subscription.assuranceKind = byteLane(policyWord, "256");
   subscription.dependencyKind = byteLane(policyWord, "65536");
-  subscription.activationKind = byteLane(policyWord, "16777216");
+  subscription.activationKind = activationKind;
   subscription.terminationBillingKind = byteLane(policyWord, "4294967296");
   subscription.pauseAllowed = boolLane(policyWord, "1099511627776");
   subscription.maxRatePerEpoch = event.parameters[16].value.toBigInt();
@@ -96,7 +97,7 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   subscription.totalChargedGross = BigInt.zero();
   subscription.claimCount = BigInt.zero();
   subscription.pauseRateUpdateDeferred = false;
-  subscription.state = "ACCEPTED";
+  subscription.state = activationKind == 0 ? "ACTIVE" : "PENDING_ACTIVATION";
   subscription.createdBlock = event.block.number;
   subscription.createdTransaction = event.transaction.hash;
   subscription.save();

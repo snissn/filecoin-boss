@@ -170,6 +170,7 @@ export function handleRateSynchronized(event: ethereum.Event): void {
   subscription.quoteEpoch = event.parameters[3].value.toBigInt();
   subscription.quoteValidThroughEpoch = event.parameters[4].value.toBigInt();
   subscription.resourceStatusHash = event.parameters[5].value.toBytes();
+  subscription.pauseRateUpdateDeferred = false;
   subscription.save();
 
   const update = new RateUpdate(eventEntityId(event));

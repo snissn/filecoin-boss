@@ -2,6 +2,8 @@ import { Address, BigInt, Bytes, ethereum } from "@graphprotocol/graph-ts";
 import { afterEach, assert, clearStore, describe, newMockEvent, test } from "matchstick-as";
 import {
   handleFixedBudgetToppedUp,
+  handlePauseRateUpdateDeferred,
+  handleRateSynchronized,
   handleSubscriptionActivated,
   handleSubscriptionAccepted,
   handleSubscriptionEnded,
@@ -219,7 +221,24 @@ describe("A10 Boss Graph mappings", () => {
     assert.fieldEquals("Subscription", subscriptionId, "pausedEpoch", "110");
     assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
 
-    const resume = mockEvent(Fixtures.ACCOUNT, 3, 2);
+    const deferred = mockEvent(Fixtures.ACCOUNT, 3, 2);
+    deferred.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+    handlePauseRateUpdateDeferred(deferred);
+    assert.fieldEquals("Subscription", subscriptionId, "pauseRateUpdateDeferred", "true");
+
+    const sync = mockEvent(Fixtures.ACCOUNT, 3, 3);
+    sync.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+    sync.parameters.push(unsigned("oldRate", BigInt.fromI32(25)));
+    sync.parameters.push(unsigned("newRate", BigInt.zero()));
+    sync.parameters.push(unsigned("quoteEpoch", BigInt.fromI32(115)));
+    sync.parameters.push(unsigned("validThroughEpoch", BigInt.fromI32(140)));
+    sync.parameters.push(fixedBytes("resourceStatusHash", Fixtures.RESOURCE_DATA));
+    handleRateSynchronized(sync);
+    assert.fieldEquals("Subscription", subscriptionId, "state", "PAUSED");
+    assert.fieldEquals("Subscription", subscriptionId, "pauseRateUpdateDeferred", "false");
+    assert.fieldEquals("Subscription", subscriptionId, "acceptedRatePerEpoch", "0");
+
+    const resume = mockEvent(Fixtures.ACCOUNT, 3, 4);
     resume.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
     resume.parameters.push(unsigned("resumedEpoch", BigInt.fromI32(120)));
     handleSubscriptionResumed(resume);

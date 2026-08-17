@@ -40,6 +40,12 @@ PRODUCT_POLICY = {
     "baseStorage": "UNCHANGED_FWSS_RAIL",
 }
 PRODUCT_NUMBERS = {"grossPricePerTiBPerPeriod", "periodEpochs", "requiredLockupPeriod", "quoteTtlEpochs"}
+PRODUCT_NUMBER_POLICY = {
+    "grossPricePerTiBPerPeriod": "2490000000000000000",
+    "periodEpochs": 86400,
+    "requiredLockupPeriod": 2880,
+    "quoteTtlEpochs": 2880,
+}
 CONFIG_KEYS = {
     "chainId",
     "provider",
@@ -218,6 +224,10 @@ def load_product(path):
     product = json.loads(Path(path).read_text(encoding="utf-8"))
     exact_keys(product, set(PRODUCT_POLICY) | PRODUCT_NUMBERS, "product")
     for key, expected in PRODUCT_POLICY.items():
+        actual = product[key]
+        if type(actual) is not type(expected) or actual != expected:
+            raise ValueError(f"product.{key} must equal {expected!r} with the exact JSON type")
+    for key, expected in PRODUCT_NUMBER_POLICY.items():
         actual = product[key]
         if type(actual) is not type(expected) or actual != expected:
             raise ValueError(f"product.{key} must equal {expected!r} with the exact JSON type")

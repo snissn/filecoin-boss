@@ -70,7 +70,7 @@ test('binds SubscriptionAccepted to the exact packaged BossAccount ABI', () => {
   assert.match(renderSubgraphYaml(buildSubgraphConfig(manifest, authority)), new RegExp(escapeRegex(signature)))
 })
 
-test('fails closed on source-authority drift, zero addresses, unsupported networks, or network/chain mismatches', () => {
+test('fails closed on source-authority drift, zero values, unsupported networks, or network/chain mismatches', () => {
   assert.throws(() => buildSubgraphConfig({ ...manifest, protocolCommit: '0'.repeat(40) }, authority))
   assert.throws(() =>
     buildSubgraphConfig(
@@ -84,9 +84,34 @@ test('fails closed on source-authority drift, zero addresses, unsupported networ
       authority
     )
   )
+  assert.throws(() =>
+    buildSubgraphConfig(
+      {
+        ...manifest,
+        contracts: {
+          ...manifest.contracts,
+          BossFactory: { ...manifest.contracts.BossFactory, runtimeCodeHash: '0x' + '0'.repeat(64) },
+        },
+      },
+      authority
+    )
+  )
+  assert.throws(() =>
+    buildSubgraphConfig(
+      {
+        ...manifest,
+        contracts: {
+          ...manifest.contracts,
+          BossFactory: { ...manifest.contracts.BossFactory, deploymentTxHash: '0x' + '0'.repeat(64) },
+        },
+      },
+      authority
+    )
+  )
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'unknown-network' }, authority))
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin', chainId: 314159 }, authority))
   assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'filecoin-testnet', chainId: 314 }, authority))
+  assert.throws(() => buildSubgraphConfig({ ...manifest, network: 'localhost', chainId: 31337 }, authority))
   assert.doesNotThrow(() => buildSubgraphConfig({ ...manifest, network: 'localhost', chainId: 1337 }, authority))
 })
 

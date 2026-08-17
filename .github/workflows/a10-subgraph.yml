@@ -2,21 +2,21 @@ name: A10 Subgraph
 
 on:
   push:
-    branches: [main]
+    branches: [main, gpt56/issue-12-boss-subgraph-r2]
     paths:
-      - '.github/workflows/a10-subgraph.yml'
-      - 'deployments/schema.json'
-      - 'packages/contracts/abi/**'
-      - 'packages/contracts/artifacts.json'
-      - 'packages/subgraph/**'
+      - ".github/workflows/a10-subgraph.yml"
+      - "deployments/schema.json"
+      - "packages/contracts/abi/**"
+      - "packages/contracts/artifacts.json"
+      - "packages/subgraph/**"
   pull_request:
     branches: [main]
     paths:
-      - '.github/workflows/a10-subgraph.yml'
-      - 'deployments/schema.json'
-      - 'packages/contracts/abi/**'
-      - 'packages/contracts/artifacts.json'
-      - 'packages/subgraph/**'
+      - ".github/workflows/a10-subgraph.yml"
+      - "deployments/schema.json"
+      - "packages/contracts/abi/**"
+      - "packages/contracts/artifacts.json"
+      - "packages/subgraph/**"
   workflow_dispatch:
 
 permissions:
@@ -29,14 +29,58 @@ concurrency:
 jobs:
   contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-      - name: Run fixed A10 behavior contract
-        run: npm test --prefix packages/subgraph
+
+      - name: Install subgraph dependencies
+        run: npm ci --prefix packages/subgraph
+
+      - name: Run deployment and replay unit contracts
+        run: npm run test:unit --prefix packages/subgraph
+
+      - name: Generate and compile the Graph package
+        id: graph-build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build --prefix packages/subgraph 2>&1 | tee /tmp/a10-graph-build.log
+
+      - name: Run Matchstick lifecycle tests
+        id: matchstick
+        if: steps.graph-build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:matchstick --prefix packages/subgraph 2>&1 | tee /tmp/a10-matchstick.log
+
+      - name: Upload exact A10 diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: a10-subgraph-diagnostic
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            /tmp/a10-graph-build.log
+            /tmp/a10-matchstick.log
+            packages/subgraph/package-lock.json
+            packages/subgraph/subgraph.yaml
+            packages/subgraph/generated
+
+      - name: Enforce Graph and Matchstick results
+        if: steps.graph-build.outcome != 'success' || steps.matchstick.outcome != 'success'
+        run: exit 1
+
       - name: Replay 100,000 deterministic events
         run: npm run benchmark --prefix packages/subgraph

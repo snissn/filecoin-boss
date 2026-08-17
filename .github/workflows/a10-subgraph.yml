@@ -55,22 +55,32 @@ jobs:
           set -o pipefail
           npm run build --prefix packages/subgraph 2>&1 | tee /tmp/a10-graph-build.log
 
-      - name: Upload exact Graph diagnostic
+      - name: Run Matchstick lifecycle tests
+        id: matchstick
+        if: steps.graph-build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:matchstick --prefix packages/subgraph 2>&1 | tee /tmp/a10-matchstick.log
+
+      - name: Upload exact A10 diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: a10-graph-diagnostic
+          name: a10-subgraph-diagnostic
           if-no-files-found: warn
+          include-hidden-files: true
           path: |
             /tmp/a10-graph-build.log
+            /tmp/a10-matchstick.log
+            packages/subgraph/package-lock.json
             packages/subgraph/subgraph.yaml
+            packages/subgraph/generated
 
-      - name: Enforce Graph build result
-        if: steps.graph-build.outcome != 'success'
+      - name: Enforce Graph and Matchstick results
+        if: steps.graph-build.outcome != 'success' || steps.matchstick.outcome != 'success'
         run: exit 1
-
-      - name: Run Matchstick lifecycle tests
-        run: npm run test:matchstick --prefix packages/subgraph
 
       - name: Replay 100,000 deterministic events
         run: npm run benchmark --prefix packages/subgraph

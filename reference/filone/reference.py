@@ -256,6 +256,8 @@ def quote_rate_per_epoch(product, size_bytes):
 def render_offer(product, terms, config):
     if not isinstance(terms, bytes) or not terms:
         raise ValueError("terms must be nonempty raw bytes")
+    if terms != (REFERENCE_DIR / "terms.md").read_bytes():
+        raise ValueError("terms must match the committed Filone v1 terms")
     exact_keys(config, CONFIG_KEYS, "config")
     chain_id = uint64(config["chainId"], "chainId", positive=True)
     offer_version = uint64(config["offerVersion"], "offerVersion", positive=True)

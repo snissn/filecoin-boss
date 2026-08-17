@@ -202,8 +202,12 @@ def canonical_json(value):
 
 
 def document_sha256(document):
-    payload = document if isinstance(document, bytes) else canonical_json(document)
-    return hashlib.sha256(payload).hexdigest()
+    if isinstance(document, bytes):
+        try:
+            document = json.loads(document)
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("document bytes must contain valid JSON") from error
+    return hashlib.sha256(canonical_json(document)).hexdigest()
 
 
 def keccak(payload):

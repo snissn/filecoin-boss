@@ -12,3 +12,6 @@ coverage/
 .DS_Store
 .vscode/
 .idea/
+
+# Ephemeral deployment verification
+deployments/.local-manifest.json

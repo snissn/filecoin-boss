@@ -1,0 +1,41 @@
+name: A12 Filone Reference
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - reference/filone/**
+      - .github/workflows/a12-filone-reference.yml
+  push:
+    branches: [main]
+    paths:
+      - reference/filone/**
+      - .github/workflows/a12-filone-reference.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a12-filone-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.3.5
+          cache: true
+
+      - name: Validate reference package
+        run: python3 -m unittest discover -s reference/filone -p 'test_*.py' -v
+
+      - name: Compile Python
+        run: python3 -m py_compile reference/filone/reference.py reference/filone/test_reference.py

@@ -11,46 +11,46 @@ import {
 import { handleBossAccountCreated } from "../src/factory";
 
 class Fixtures {
-  static FACTORY = Address.fromString("0x1111111111111111111111111111111111111111");
-  static ACCOUNT = Address.fromString("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  static OWNER = Address.fromString("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-  static PAY = Address.fromString("0xcccccccccccccccccccccccccccccccccccccccc");
-  static SERVICE_REGISTRY = Address.fromString("0x2222222222222222222222222222222222222222");
-  static ADAPTER_REGISTRY = Address.fromString("0x3333333333333333333333333333333333333333");
-  static BENEFICIARY = Address.fromString("0xdddddddddddddddddddddddddddddddddddddddd");
-  static TOKEN = Address.fromString("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-  static PROVIDER = Address.fromString("0x9999999999999999999999999999999999999999");
-  static REPORTER = Address.fromString("0x8888888888888888888888888888888888888888");
-  static RESOURCE_ADAPTER = Address.fromString("0x7777777777777777777777777777777777777777");
-  static PRICING_ADAPTER = Address.fromString("0x6666666666666666666666666666666666666666");
-  static ACCOUNT_KEY = Bytes.fromHexString(
+  static FACTORY: Address = Address.fromString("0x1111111111111111111111111111111111111111");
+  static ACCOUNT: Address = Address.fromString("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  static OWNER: Address = Address.fromString("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+  static PAY: Address = Address.fromString("0xcccccccccccccccccccccccccccccccccccccccc");
+  static SERVICE_REGISTRY: Address = Address.fromString("0x2222222222222222222222222222222222222222");
+  static ADAPTER_REGISTRY: Address = Address.fromString("0x3333333333333333333333333333333333333333");
+  static BENEFICIARY: Address = Address.fromString("0xdddddddddddddddddddddddddddddddddddddddd");
+  static TOKEN: Address = Address.fromString("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+  static PROVIDER: Address = Address.fromString("0x9999999999999999999999999999999999999999");
+  static REPORTER: Address = Address.fromString("0x8888888888888888888888888888888888888888");
+  static RESOURCE_ADAPTER: Address = Address.fromString("0x7777777777777777777777777777777777777777");
+  static PRICING_ADAPTER: Address = Address.fromString("0x6666666666666666666666666666666666666666");
+  static ACCOUNT_KEY: Bytes = Bytes.fromHexString(
     "0x0101010101010101010101010101010101010101010101010101010101010101",
   ) as Bytes;
-  static SUBSCRIPTION = Bytes.fromHexString(
+  static SUBSCRIPTION: Bytes = Bytes.fromHexString(
     "0x0202020202020202020202020202020202020202020202020202020202020202",
   ) as Bytes;
-  static OFFER = Bytes.fromHexString(
+  static OFFER: Bytes = Bytes.fromHexString(
     "0x0303030303030303030303030303030303030303030303030303030303030303",
   ) as Bytes;
-  static RESOURCE = Bytes.fromHexString(
+  static RESOURCE: Bytes = Bytes.fromHexString(
     "0x0404040404040404040404040404040404040404040404040404040404040404",
   ) as Bytes;
-  static RESOURCE_DATA = Bytes.fromHexString(
+  static RESOURCE_DATA: Bytes = Bytes.fromHexString(
     "0x0505050505050505050505050505050505050505050505050505050505050505",
   ) as Bytes;
-  static PRICING_DATA = Bytes.fromHexString(
+  static PRICING_DATA: Bytes = Bytes.fromHexString(
     "0x0606060606060606060606060606060606060606060606060606060606060606",
   ) as Bytes;
-  static ACCESS_GRANT = Bytes.fromHexString(
+  static ACCESS_GRANT: Bytes = Bytes.fromHexString(
     "0x0707070707070707070707070707070707070707070707070707070707070707",
   ) as Bytes;
-  static CLAIM_ID = Bytes.fromHexString(
+  static CLAIM_ID: Bytes = Bytes.fromHexString(
     "0x0808080808080808080808080808080808080808080808080808080808080808",
   ) as Bytes;
-  static CLAIM_HASH = Bytes.fromHexString(
+  static CLAIM_HASH: Bytes = Bytes.fromHexString(
     "0x0909090909090909090909090909090909090909090909090909090909090909",
   ) as Bytes;
-  static EVIDENCE_HASH = Bytes.fromHexString(
+  static EVIDENCE_HASH: Bytes = Bytes.fromHexString(
     "0x1010101010101010101010101010101010101010101010101010101010101010",
   ) as Bytes;
 }

@@ -1,0 +1,445 @@
+name: Stage exact-head A10 review repair
+
+on:
+  push:
+    branches:
+      - gpt56/issue-12-boss-subgraph-r2
+    paths:
+      - ".github/workflows/a10-review-repair.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: a10-review-repair
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact trigger
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Verify isolated repair trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "d2a4a0f82b416441db491faf3d9ac580ea8bc7ff"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/a10-review-repair.yml"
+
+      - name: Apply bounded review repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement, found {count}")
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              ".github/workflows/a10-subgraph.yml",
+              "        run: npm install --prefix packages/subgraph\n",
+              "        run: npm ci --prefix packages/subgraph\n",
+          )
+          replace_once(
+              ".github/workflows/a10-subgraph.yml",
+              "        uses: actions/upload-artifact@v4\n",
+              "        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2\n",
+          )
+
+          replace_once(
+              "packages/subgraph/src/utils.ts",
+              '''export function railSubscriptionEntityId(account: Address, railId: BigInt): string {
+            return scopedEntityId(account, "rail:" + railId.toString());
+          }
+          ''',
+              '''export function railSubscriptionEntityId(filecoinPay: Address, railId: BigInt): string {
+            return chainId().toString() + ":" + filecoinPay.toHexString() + ":" + railId.toString();
+          }
+          ''',
+          )
+
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''function lifetimeCapExhausted(subscription: Subscription): boolean {
+            return !subscription.lifetimeCapGross.equals(MAX_UINT256) &&
+              subscription.totalChargedGross.ge(subscription.lifetimeCapGross);
+          }
+          ''',
+              '''function lifetimeCapExhausted(subscription: Subscription): boolean {
+            return !subscription.lifetimeCapGross.equals(MAX_UINT256) &&
+              subscription.totalChargedGross.ge(subscription.lifetimeCapGross);
+          }
+
+          function streamingSettlementRequiresAccountRead(subscription: Subscription): boolean {
+            return (
+              (subscription.billingKind == 0 || subscription.billingKind == 1) &&
+              !subscription.lifetimeCapGross.equals(MAX_UINT256) &&
+              subscription.state == "ACTIVE"
+            );
+          }
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  const policyWord = event.parameters[15].value.toBigInt();
+            const activationKind = byteLane(policyWord, "16777216");
+          ''',
+              '''  const policyWord = event.parameters[15].value.toBigInt();
+            const billingKind = byteLane(policyWord, "1");
+            const activationKind = byteLane(policyWord, "16777216");
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '  subscription.billingKind = byteLane(policyWord, "1");\n',
+              '  subscription.billingKind = billingKind;\n',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.state = activationKind == 0 ? "ACTIVE" : "PENDING_ACTIVATION";
+            subscription.createdBlock = event.block.number;
+          ''',
+              '''  subscription.state = activationKind == 0 ? "ACTIVE" : "PENDING_ACTIVATION";
+            subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
+            subscription.createdBlock = event.block.number;
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '  const rail = new RailSubscription(railSubscriptionEntityId(accountAddress, subscription.railId));\n',
+              '  const rail = new RailSubscription(railSubscriptionEntityId(account.filecoinPay, subscription.railId));\n',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.activatedEpoch = event.parameters[1].value.toBigInt();
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.save();
+          ''',
+              '''  subscription.activatedEpoch = event.parameters[1].value.toBigInt();
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
+            subscription.save();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.pausedEpoch = event.parameters[1].value.toBigInt();
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.save();
+          ''',
+              '''  subscription.pausedEpoch = event.parameters[1].value.toBigInt();
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.requiresAccountRead = false;
+            subscription.save();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''export function handleSubscriptionResumed(event: ethereum.Event): void {
+            const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+            subscription.state = "ACTIVE";
+            subscription.resumedEpoch = event.parameters[1].value.toBigInt();
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.save();
+          ''',
+              '''export function handleSubscriptionResumed(event: ethereum.Event): void {
+            const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+            const resumedEpoch = event.parameters[1].value.toBigInt();
+            subscription.state = "ACTIVE";
+            subscription.activatedEpoch = resumedEpoch;
+            subscription.pausedEpoch = BigInt.zero();
+            subscription.resumedEpoch = resumedEpoch;
+            subscription.pauseRateUpdateDeferred = false;
+            subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
+            subscription.save();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.state = "TERMINATING";
+            subscription.terminationRequestedEpoch = event.parameters[1].value.toBigInt();
+            subscription.save();
+          ''',
+              '''  subscription.state = "TERMINATING";
+            subscription.terminationRequestedEpoch = event.parameters[1].value.toBigInt();
+            subscription.requiresAccountRead = false;
+            subscription.save();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''export function handleSubscriptionPayTerminationObserved(event: ethereum.Event): void {
+            const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+            const railId = event.parameters[1].value.toBigInt();
+          ''',
+              '''export function handleSubscriptionPayTerminationObserved(event: ethereum.Event): void {
+            const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+            const account = requireAccount(event.address);
+            const railId = event.parameters[1].value.toBigInt();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.state = "TERMINATING";
+            subscription.payEndEpoch = event.parameters[2].value.toBigInt();
+            subscription.save();
+
+            const rail = RailSubscription.load(railSubscriptionEntityId(event.address, railId));
+          ''',
+              '''  subscription.state = "TERMINATING";
+            subscription.payEndEpoch = event.parameters[2].value.toBigInt();
+            subscription.requiresAccountRead = false;
+            subscription.save();
+
+            const rail = RailSubscription.load(railSubscriptionEntityId(account.filecoinPay, railId));
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''export function handleSubscriptionEnded(event: ethereum.Event): void {
+            const subscriptionId = event.parameters[0].value.toBytes();
+            const subscription = requireSubscription(event.address, subscriptionId);
+          ''',
+              '''export function handleSubscriptionEnded(event: ethereum.Event): void {
+            const subscriptionId = event.parameters[0].value.toBytes();
+            const subscription = requireSubscription(event.address, subscriptionId);
+            const account = requireAccount(event.address);
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  subscription.state = "ENDED";
+            subscription.finalSettledEpoch = event.parameters[1].value.toBigInt();
+            subscription.save();
+
+            const rail = RailSubscription.load(railSubscriptionEntityId(event.address, subscription.railId));
+          ''',
+              '''  subscription.state = "ENDED";
+            subscription.finalSettledEpoch = event.parameters[1].value.toBigInt();
+            subscription.requiresAccountRead = false;
+            subscription.save();
+
+            const rail = RailSubscription.load(railSubscriptionEntityId(account.filecoinPay, subscription.railId));
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  if (subscription.currentFixedBudget.equals(BigInt.zero()) || lifetimeCapExhausted(subscription)) {
+              subscription.state = "EXHAUSTED";
+            }
+            subscription.save();
+          ''',
+              '''  if (subscription.currentFixedBudget.equals(BigInt.zero()) || lifetimeCapExhausted(subscription)) {
+              subscription.state = "EXHAUSTED";
+            }
+            subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
+            subscription.save();
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/src/account.ts",
+              '''  if (subscription.state == "EXHAUSTED" && newBudget.gt(BigInt.zero()) && !lifetimeCapExhausted(subscription)) {
+              subscription.state = "ACTIVE";
+            }
+            subscription.save();
+          ''',
+              '''  if (subscription.state == "EXHAUSTED" && newBudget.gt(BigInt.zero()) && !lifetimeCapExhausted(subscription)) {
+              subscription.state = "ACTIVE";
+            }
+            subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
+            subscription.save();
+          ''',
+          )
+
+          replace_once(
+              "packages/subgraph/schema.graphql",
+              '''  pauseRateUpdateDeferred: Boolean!
+            state: SubscriptionState!
+          ''',
+              '''  pauseRateUpdateDeferred: Boolean!
+            """
+            Last lifecycle state proven by Boss events. When requiresAccountRead is true,
+            streaming settlement may have advanced finite-cap state without another Boss event.
+            """
+            state: SubscriptionState!
+            """
+            True when current settlement-driven state or cap accounting must be read directly
+            from BossAccount.getSubscription rather than inferred from the Boss event stream.
+            """
+            requiresAccountRead: Boolean!
+          ''',
+          )
+
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '''  handleSubscriptionEnded,
+            handleSubscriptionTerminationRequested,
+            handleUsageClaimCharged,
+          ''',
+              '''  handleSubscriptionEnded,
+            handleSubscriptionPaused,
+            handleSubscriptionResumed,
+            handleSubscriptionTerminationRequested,
+            handleUsageClaimCharged,
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '''  static PENDING_SUBSCRIPTION: Bytes = Bytes.fromHexString(
+              "0x1212121212121212121212121212121212121212121212121212121212121212",
+            ) as Bytes;
+          ''',
+              '''  static PENDING_SUBSCRIPTION: Bytes = Bytes.fromHexString(
+              "0x1212121212121212121212121212121212121212121212121212121212121212",
+            ) as Bytes;
+            static STREAM_SUBSCRIPTION: Bytes = Bytes.fromHexString(
+              "0x1313131313131313131313131313131313131313131313131313131313131313",
+            ) as Bytes;
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '''    assert.fieldEquals("Subscription", subscriptionId, "activationKind", "1");
+              assert.fieldEquals("Subscription", subscriptionId, "state", "PENDING_ACTIVATION");
+            });
+
+            test("reconstructs metered acceptance, rail/resource joins, claims, recovery, and termination", () => {
+          ''',
+              '''    assert.fieldEquals("Subscription", subscriptionId, "activationKind", "1");
+              assert.fieldEquals("Subscription", subscriptionId, "state", "PENDING_ACTIVATION");
+              assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+            });
+
+            test("marks active finite-cap streaming state as requiring a direct account read", () => {
+              createAccount();
+              acceptSubscription(Fixtures.STREAM_SUBSCRIPTION, BigInt.fromString("1103806726657"));
+              const accountId = "1337:" + Fixtures.ACCOUNT.toHexString();
+              const subscriptionId = accountId + ":" + Fixtures.STREAM_SUBSCRIPTION.toHexString();
+              assert.fieldEquals("Subscription", subscriptionId, "billingKind", "1");
+              assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+              assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "true");
+            });
+
+            test("reconstructs metered acceptance, rail/resource joins, claims, recovery, and termination", () => {
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '    const railId = accountId + ":rail:7";\n',
+              '    const railId = "1337:" + Fixtures.PAY.toHexString() + ":7";\n',
+          )
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '''    assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+              assert.fieldEquals("RailSubscription", railId, "subscriptionId", Fixtures.SUBSCRIPTION.toHexString());
+          ''',
+              '''    assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+              assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+              assert.fieldEquals("RailSubscription", railId, "subscriptionId", Fixtures.SUBSCRIPTION.toHexString());
+          ''',
+          )
+          replace_once(
+              "packages/subgraph/tests/a10.test.ts",
+              '''    activateSubscription();
+              chargeCompleteBudget();
+          ''',
+              '''    activateSubscription();
+
+              const pause = mockEvent(Fixtures.ACCOUNT, 3, 1);
+              pause.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+              pause.parameters.push(unsigned("pausedEpoch", BigInt.fromI32(110)));
+              handleSubscriptionPaused(pause);
+              assert.fieldEquals("Subscription", subscriptionId, "state", "PAUSED");
+              assert.fieldEquals("Subscription", subscriptionId, "pausedEpoch", "110");
+              assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+
+              const resume = mockEvent(Fixtures.ACCOUNT, 3, 2);
+              resume.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+              resume.parameters.push(unsigned("resumedEpoch", BigInt.fromI32(120)));
+              handleSubscriptionResumed(resume);
+              assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+              assert.fieldEquals("Subscription", subscriptionId, "activatedEpoch", "120");
+              assert.fieldEquals("Subscription", subscriptionId, "pausedEpoch", "0");
+              assert.fieldEquals("Subscription", subscriptionId, "resumedEpoch", "120");
+              assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+
+              chargeCompleteBudget();
+          ''',
+          )
+
+          manifest = Path("packages/subgraph/src/manifest-config.mjs").read_text()
+          tests = Path("packages/subgraph/test/manifest-config.test.mjs").read_text()
+          if "['localhost', 1337]" not in manifest or "network: 'localhost', chainId: 31337" not in tests:
+              raise SystemExit("localhost chain authority is not fail-closed")
+          PY
+
+      - name: Generate exact dependency lock
+        working-directory: packages/subgraph
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Validate repaired package
+        working-directory: packages/subgraph
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run test:unit
+          npm run build
+          npm run test:matchstick
+          npm run benchmark
+
+      - name: Publish staged candidate ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/a10-review-repair.yml
+          git add \
+            .github/workflows/a10-subgraph.yml \
+            packages/subgraph/package-lock.json \
+            packages/subgraph/schema.graphql \
+            packages/subgraph/src/account.ts \
+            packages/subgraph/src/utils.ts \
+            packages/subgraph/tests/a10.test.ts
+
+          expected=$(cat <<'EOF'
+          .github/workflows/a10-review-repair.yml
+          .github/workflows/a10-subgraph.yml
+          packages/subgraph/package-lock.json
+          packages/subgraph/schema.graphql
+          packages/subgraph/src/account.ts
+          packages/subgraph/src/utils.ts
+          packages/subgraph/tests/a10.test.ts
+          EOF
+          )
+          actual=$(git diff --cached --name-only | sort)
+          test "$actual" = "$(printf '%s\n' "$expected" | sed 's/^          //' | sort)"
+
+          git commit -m "fix(subgraph): resolve exact-head A10 review findings"
+          candidate=$(git rev-parse HEAD)
+          auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          remote_head=$(git ls-remote "$auth_url" refs/heads/gpt56/issue-12-boss-subgraph-r2 | cut -f1)
+          test "$remote_head" = "$GITHUB_SHA"
+          test -z "$(git ls-remote "$auth_url" refs/heads/gpt56/a10-review-repair-candidate)"
+          git push "$auth_url" "HEAD:refs/heads/gpt56/a10-review-repair-candidate"
+          echo "Staged candidate: $candidate"

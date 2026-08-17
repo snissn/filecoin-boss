@@ -1,0 +1,270 @@
+enum SubscriptionState {
+  ACCEPTED
+  ACTIVE
+  PAUSED
+  TERMINATING
+  ENDED
+  EXHAUSTED
+}
+
+type BossAccount @entity {
+  id: ID!
+  chainId: BigInt!
+  factory: Bytes!
+  address: Bytes!
+  owner: Bytes!
+  filecoinPay: Bytes!
+  serviceRegistry: Bytes!
+  adapterRegistry: Bytes!
+  accountVersion: BigInt!
+  accountKey: Bytes!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+  subscriptions: [Subscription!]! @derivedFrom(field: "account")
+  railSubscriptions: [RailSubscription!]! @derivedFrom(field: "account")
+  resourceSubscriptions: [ResourceSubscription!]! @derivedFrom(field: "account")
+}
+
+type Provider @entity {
+  id: ID!
+  chainId: BigInt!
+  serviceRegistry: Bytes!
+  address: Bytes!
+  registered: Boolean!
+  revision: BigInt!
+  defaultBeneficiary: Bytes!
+  metadataURI: String!
+  signers: [ProviderSigner!]! @derivedFrom(field: "provider")
+  services: [BossService!]! @derivedFrom(field: "provider")
+  revokedNonces: [ProviderOfferNonce!]! @derivedFrom(field: "provider")
+}
+
+type ProviderSigner @entity {
+  id: ID!
+  provider: Provider!
+  signingKey: Bytes!
+  active: Boolean!
+  revision: BigInt!
+  updatedBlock: BigInt!
+  updatedTransaction: Bytes!
+}
+
+type ProviderOfferNonce @entity {
+  id: ID!
+  provider: Provider!
+  nonce: BigInt!
+  revoked: Boolean!
+  revision: BigInt!
+  updatedBlock: BigInt!
+  updatedTransaction: Bytes!
+}
+
+type BossService @entity {
+  id: ID!
+  chainId: BigInt!
+  serviceRegistry: Bytes!
+  provider: Provider!
+  providerAddress: Bytes!
+  serviceId: Bytes!
+  serviceType: Bytes!
+  version: BigInt!
+  providerRevision: BigInt!
+  metadataURI: String!
+  published: Boolean!
+  updatedBlock: BigInt!
+  updatedTransaction: Bytes!
+}
+
+type Adapter @entity {
+  id: ID!
+  chainId: BigInt!
+  adapterRegistry: Bytes!
+  address: Bytes!
+  kind: Int!
+  interfaceVersion: BigInt!
+  codeHash: Bytes!
+  observedCodeHash: Bytes!
+  activeForNewSubscriptions: Boolean!
+  metadataURI: String!
+  updatedBlock: BigInt!
+  updatedTransaction: Bytes!
+}
+
+type Governance @entity {
+  id: ID!
+  chainId: BigInt!
+  adapterRegistry: Bytes!
+  previousGovernance: Bytes!
+  currentGovernance: Bytes!
+  updatedBlock: BigInt!
+  updatedTransaction: Bytes!
+}
+
+type Bundle @entity {
+  id: ID!
+  chainId: BigInt!
+  bundleRegistry: Bytes!
+  bundleId: Bytes!
+  owner: Bytes!
+  account: BossAccount!
+  accountAddress: Bytes!
+  resourceKey: Bytes!
+  manifestHash: Bytes!
+  version: BigInt!
+  componentCount: BigInt!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+  components: [BundleComponent!]! @derivedFrom(field: "bundle")
+}
+
+type BundleComponent @entity {
+  id: ID!
+  bundle: Bundle!
+  subscriptionId: Bytes!
+  index: BigInt!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+}
+
+type Subscription @entity {
+  id: ID!
+  chainId: BigInt!
+  account: BossAccount!
+  accountAddress: Bytes!
+  subscriptionId: Bytes!
+  offerHash: Bytes!
+  resourceKey: Bytes!
+  railId: BigInt!
+  beneficiary: Bytes!
+  token: Bytes!
+  provider: Bytes!
+  reporter: Bytes!
+  resourceAdapter: Bytes!
+  pricingAdapter: Bytes!
+  resourceDataHash: Bytes!
+  pricingDataHash: Bytes!
+  accessGrantHash: Bytes!
+  policyWord: BigInt!
+  billingKind: Int!
+  assuranceKind: Int!
+  dependencyKind: Int!
+  activationKind: Int!
+  terminationBillingKind: Int!
+  pauseAllowed: Boolean!
+  maxRatePerEpoch: BigInt!
+  maxFixedLockup: BigInt!
+  maxSingleCharge: BigInt!
+  maxChargePerWindow: BigInt!
+  lifetimeCapGross: BigInt!
+  chargeWindowEpochs: BigInt!
+  notAfterEpoch: BigInt!
+  maxLockupPeriod: BigInt!
+  acceptedRatePerEpoch: BigInt!
+  acceptedEpoch: BigInt!
+  quoteEpoch: BigInt
+  quoteValidThroughEpoch: BigInt!
+  quoteTtlEpochs: BigInt!
+  currentFixedBudget: BigInt!
+  totalRawGross: BigInt!
+  totalChargedGross: BigInt!
+  claimCount: BigInt!
+  provisioningHash: Bytes
+  resourceStatusHash: Bytes
+  activatedEpoch: BigInt
+  pausedEpoch: BigInt
+  resumedEpoch: BigInt
+  terminationRequestedEpoch: BigInt
+  payEndEpoch: BigInt
+  finalSettledEpoch: BigInt
+  pauseRateUpdateDeferred: Boolean!
+  state: SubscriptionState!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+  usageClaims: [UsageClaim!]! @derivedFrom(field: "subscription")
+  rateUpdates: [RateUpdate!]! @derivedFrom(field: "subscription")
+  budgetUpdates: [BudgetUpdate!]! @derivedFrom(field: "subscription")
+}
+
+type RailSubscription @entity {
+  id: ID!
+  chainId: BigInt!
+  filecoinPay: Bytes!
+  account: BossAccount!
+  bossAccount: Bytes!
+  subscription: Subscription!
+  subscriptionId: Bytes!
+  railId: BigInt!
+  payer: Bytes!
+  payee: Bytes!
+  operator: Bytes!
+  token: Bytes!
+  active: Boolean!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+}
+
+type ResourceSubscription @entity {
+  id: ID!
+  chainId: BigInt!
+  account: BossAccount!
+  bossAccount: Bytes!
+  subscription: Subscription!
+  subscriptionId: Bytes!
+  resourceKey: Bytes!
+  active: Boolean!
+  createdBlock: BigInt!
+  createdTransaction: Bytes!
+}
+
+type UsageClaim @entity {
+  id: ID!
+  chainId: BigInt!
+  bossAccount: Bytes!
+  subscription: Subscription!
+  subscriptionId: Bytes!
+  claimId: Bytes!
+  claimHash: Bytes!
+  units: BigInt!
+  rawGross: BigInt!
+  chargedGross: BigInt!
+  evidenceHash: Bytes!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+}
+
+type RateUpdate @entity {
+  id: ID!
+  subscription: Subscription!
+  subscriptionId: Bytes!
+  oldRate: BigInt!
+  newRate: BigInt!
+  quoteEpoch: BigInt!
+  validThroughEpoch: BigInt!
+  resourceStatusHash: Bytes!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+}
+
+type BudgetUpdate @entity {
+  id: ID!
+  subscription: Subscription!
+  subscriptionId: Bytes!
+  oldBudget: BigInt!
+  newBudget: BigInt!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+}
+
+type LifecycleEvent @entity {
+  id: ID!
+  chainId: BigInt!
+  contractAddress: Bytes!
+  subjectId: String!
+  kind: String!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+  logIndex: BigInt!
+}

@@ -1,13 +1,28 @@
 {
   "name": "@filecoin-boss/subgraph",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
-    "benchmark": "node scripts/benchmark.mjs"
+    "render": "node scripts/render-fixture.mjs",
+    "codegen": "npm run render && graph codegen subgraph.yaml",
+    "build": "npm run codegen && graph build subgraph.yaml",
+    "test": "npm run test:unit",
+    "test:unit": "node --test test/*.test.mjs",
+    "test:matchstick": "npm run codegen && graph test",
+    "benchmark": "node scripts/benchmark.mjs",
+    "check": "npm run test:unit && npm run build && npm run test:matchstick && npm run benchmark"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.98.1",
+    "@graphprotocol/graph-ts": "0.38.2"
+  },
+  "devDependencies": {
+    "assemblyscript": "0.19.23",
+    "matchstick-as": "0.6.0",
+    "wabt": "1.0.39"
   }
 }

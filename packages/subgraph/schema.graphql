@@ -177,7 +177,16 @@ type Subscription @entity(immutable: false) {
   payEndEpoch: BigInt
   finalSettledEpoch: BigInt
   pauseRateUpdateDeferred: Boolean!
+  """
+  Last lifecycle state proven by Boss events. When requiresAccountRead is true,
+  streaming settlement may have advanced finite-cap state without another Boss event.
+  """
   state: SubscriptionState!
+  """
+  True when current settlement-driven state or cap accounting must be read directly
+  from BossAccount.getSubscription rather than inferred from the Boss event stream.
+  """
+  requiresAccountRead: Boolean!
   createdBlock: BigInt!
   createdTransaction: Bytes!
   usageClaims: [UsageClaim!]! @derivedFrom(field: "subscription")

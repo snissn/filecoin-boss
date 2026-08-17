@@ -5,6 +5,8 @@ import {
   handleSubscriptionActivated,
   handleSubscriptionAccepted,
   handleSubscriptionEnded,
+  handleSubscriptionPaused,
+  handleSubscriptionResumed,
   handleSubscriptionTerminationRequested,
   handleUsageClaimCharged,
 } from "../src/account";
@@ -31,6 +33,9 @@ class Fixtures {
   ) as Bytes;
   static PENDING_SUBSCRIPTION: Bytes = Bytes.fromHexString(
     "0x1212121212121212121212121212121212121212121212121212121212121212",
+  ) as Bytes;
+  static STREAM_SUBSCRIPTION: Bytes = Bytes.fromHexString(
+    "0x1313131313131313131313131313131313131313131313131313131313131313",
   ) as Bytes;
   static OFFER: Bytes = Bytes.fromHexString(
     "0x0303030303030303030303030303030303030303030303030303030303030303",
@@ -169,6 +174,17 @@ describe("A10 Boss Graph mappings", () => {
     const subscriptionId = accountId + ":" + Fixtures.PENDING_SUBSCRIPTION.toHexString();
     assert.fieldEquals("Subscription", subscriptionId, "activationKind", "1");
     assert.fieldEquals("Subscription", subscriptionId, "state", "PENDING_ACTIVATION");
+    assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+  });
+
+  test("marks active finite-cap streaming state as requiring a direct account read", () => {
+    createAccount();
+    acceptSubscription(Fixtures.STREAM_SUBSCRIPTION, BigInt.fromString("1103806726657"));
+    const accountId = "1337:" + Fixtures.ACCOUNT.toHexString();
+    const subscriptionId = accountId + ":" + Fixtures.STREAM_SUBSCRIPTION.toHexString();
+    assert.fieldEquals("Subscription", subscriptionId, "billingKind", "1");
+    assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+    assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "true");
   });
 
   test("reconstructs metered acceptance, rail/resource joins, claims, recovery, and termination", () => {
@@ -177,7 +193,7 @@ describe("A10 Boss Graph mappings", () => {
 
     const accountId = "1337:" + Fixtures.ACCOUNT.toHexString();
     const subscriptionId = accountId + ":" + Fixtures.SUBSCRIPTION.toHexString();
-    const railId = accountId + ":rail:7";
+    const railId = "1337:" + Fixtures.PAY.toHexString() + ":7";
     const resourceId =
       accountId + ":resource:" + Fixtures.RESOURCE.toHexString() + ":" + Fixtures.SUBSCRIPTION.toHexString();
 
@@ -189,10 +205,30 @@ describe("A10 Boss Graph mappings", () => {
     assert.fieldEquals("Subscription", subscriptionId, "notAfterEpoch", "1000");
     assert.fieldEquals("Subscription", subscriptionId, "maxLockupPeriod", "100");
     assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+    assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
     assert.fieldEquals("RailSubscription", railId, "subscriptionId", Fixtures.SUBSCRIPTION.toHexString());
     assert.fieldEquals("ResourceSubscription", resourceId, "active", "true");
 
     activateSubscription();
+
+    const pause = mockEvent(Fixtures.ACCOUNT, 3, 1);
+    pause.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+    pause.parameters.push(unsigned("pausedEpoch", BigInt.fromI32(110)));
+    handleSubscriptionPaused(pause);
+    assert.fieldEquals("Subscription", subscriptionId, "state", "PAUSED");
+    assert.fieldEquals("Subscription", subscriptionId, "pausedEpoch", "110");
+    assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+
+    const resume = mockEvent(Fixtures.ACCOUNT, 3, 2);
+    resume.parameters.push(fixedBytes("subscriptionId", Fixtures.SUBSCRIPTION));
+    resume.parameters.push(unsigned("resumedEpoch", BigInt.fromI32(120)));
+    handleSubscriptionResumed(resume);
+    assert.fieldEquals("Subscription", subscriptionId, "state", "ACTIVE");
+    assert.fieldEquals("Subscription", subscriptionId, "activatedEpoch", "120");
+    assert.fieldEquals("Subscription", subscriptionId, "pausedEpoch", "0");
+    assert.fieldEquals("Subscription", subscriptionId, "resumedEpoch", "120");
+    assert.fieldEquals("Subscription", subscriptionId, "requiresAccountRead", "false");
+
     chargeCompleteBudget();
     assert.fieldEquals("Subscription", subscriptionId, "totalRawGross", "120");
     assert.fieldEquals("Subscription", subscriptionId, "totalChargedGross", "100");

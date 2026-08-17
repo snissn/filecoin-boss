@@ -45,6 +45,14 @@ function lifetimeCapExhausted(subscription: Subscription): boolean {
     subscription.totalChargedGross.ge(subscription.lifetimeCapGross);
 }
 
+function streamingSettlementRequiresAccountRead(subscription: Subscription): boolean {
+  return (
+    (subscription.billingKind == 0 || subscription.billingKind == 1) &&
+    !subscription.lifetimeCapGross.equals(MAX_UINT256) &&
+    subscription.state == "ACTIVE"
+  );
+}
+
 export function handleSubscriptionAccepted(event: ethereum.Event): void {
   const subscriptionId = event.parameters[0].value.toBytes();
   const accountAddress = event.parameters[1].value.toAddress();
@@ -52,6 +60,7 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   const account = requireAccount(accountAddress);
   const id = subscriptionEntityId(accountAddress, subscriptionId);
   const policyWord = event.parameters[15].value.toBigInt();
+  const billingKind = byteLane(policyWord, "1");
   const activationKind = byteLane(policyWord, "16777216");
   const capEpochs = event.parameters[21].value.toBigInt();
   const acceptanceEpochs = event.parameters[23].value.toBigInt();
@@ -75,7 +84,7 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   subscription.pricingDataHash = event.parameters[13].value.toBytes();
   subscription.accessGrantHash = event.parameters[14].value.toBytes();
   subscription.policyWord = policyWord;
-  subscription.billingKind = byteLane(policyWord, "1");
+  subscription.billingKind = billingKind;
   subscription.assuranceKind = byteLane(policyWord, "256");
   subscription.dependencyKind = byteLane(policyWord, "65536");
   subscription.activationKind = activationKind;
@@ -98,11 +107,12 @@ export function handleSubscriptionAccepted(event: ethereum.Event): void {
   subscription.claimCount = BigInt.zero();
   subscription.pauseRateUpdateDeferred = false;
   subscription.state = activationKind == 0 ? "ACTIVE" : "PENDING_ACTIVATION";
+  subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
   subscription.createdBlock = event.block.number;
   subscription.createdTransaction = event.transaction.hash;
   subscription.save();
 
-  const rail = new RailSubscription(railSubscriptionEntityId(accountAddress, subscription.railId));
+  const rail = new RailSubscription(railSubscriptionEntityId(account.filecoinPay, subscription.railId));
   rail.chainId = chainId();
   rail.filecoinPay = account.filecoinPay;
   rail.account = account.id;
@@ -148,6 +158,7 @@ export function handleSubscriptionActivated(event: ethereum.Event): void {
   subscription.state = "ACTIVE";
   subscription.activatedEpoch = event.parameters[1].value.toBigInt();
   subscription.pauseRateUpdateDeferred = false;
+  subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
   subscription.save();
   recordLifecycle(event, "SubscriptionActivated", subscription.id);
 }
@@ -181,6 +192,7 @@ export function handleSubscriptionPaused(event: ethereum.Event): void {
   subscription.state = "PAUSED";
   subscription.pausedEpoch = event.parameters[1].value.toBigInt();
   subscription.pauseRateUpdateDeferred = false;
+  subscription.requiresAccountRead = false;
   subscription.save();
   recordLifecycle(event, "SubscriptionPaused", subscription.id);
 }
@@ -194,9 +206,13 @@ export function handlePauseRateUpdateDeferred(event: ethereum.Event): void {
 
 export function handleSubscriptionResumed(event: ethereum.Event): void {
   const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+  const resumedEpoch = event.parameters[1].value.toBigInt();
   subscription.state = "ACTIVE";
-  subscription.resumedEpoch = event.parameters[1].value.toBigInt();
+  subscription.activatedEpoch = resumedEpoch;
+  subscription.pausedEpoch = BigInt.zero();
+  subscription.resumedEpoch = resumedEpoch;
   subscription.pauseRateUpdateDeferred = false;
+  subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
   subscription.save();
   recordLifecycle(event, "SubscriptionResumed", subscription.id);
 }
@@ -205,19 +221,22 @@ export function handleSubscriptionTerminationRequested(event: ethereum.Event): v
   const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
   subscription.state = "TERMINATING";
   subscription.terminationRequestedEpoch = event.parameters[1].value.toBigInt();
+  subscription.requiresAccountRead = false;
   subscription.save();
   recordLifecycle(event, "SubscriptionTerminationRequested", subscription.id);
 }
 
 export function handleSubscriptionPayTerminationObserved(event: ethereum.Event): void {
   const subscription = requireSubscription(event.address, event.parameters[0].value.toBytes());
+  const account = requireAccount(event.address);
   const railId = event.parameters[1].value.toBigInt();
   assert(subscription.railId.equals(railId), "Pay termination rail does not match the Boss subscription");
   subscription.state = "TERMINATING";
   subscription.payEndEpoch = event.parameters[2].value.toBigInt();
+  subscription.requiresAccountRead = false;
   subscription.save();
 
-  const rail = RailSubscription.load(railSubscriptionEntityId(event.address, railId));
+  const rail = RailSubscription.load(railSubscriptionEntityId(account.filecoinPay, railId));
   if (rail != null) {
     rail.active = false;
     rail.save();
@@ -228,11 +247,13 @@ export function handleSubscriptionPayTerminationObserved(event: ethereum.Event):
 export function handleSubscriptionEnded(event: ethereum.Event): void {
   const subscriptionId = event.parameters[0].value.toBytes();
   const subscription = requireSubscription(event.address, subscriptionId);
+  const account = requireAccount(event.address);
   subscription.state = "ENDED";
   subscription.finalSettledEpoch = event.parameters[1].value.toBigInt();
+  subscription.requiresAccountRead = false;
   subscription.save();
 
-  const rail = RailSubscription.load(railSubscriptionEntityId(event.address, subscription.railId));
+  const rail = RailSubscription.load(railSubscriptionEntityId(account.filecoinPay, subscription.railId));
   if (rail != null) {
     rail.active = false;
     rail.save();
@@ -291,6 +312,7 @@ export function handleUsageClaimCharged(event: ethereum.Event): void {
   if (subscription.currentFixedBudget.equals(BigInt.zero()) || lifetimeCapExhausted(subscription)) {
     subscription.state = "EXHAUSTED";
   }
+  subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
   subscription.save();
   recordLifecycle(event, "UsageClaimCharged", subscription.id);
 }
@@ -304,6 +326,7 @@ export function handleFixedBudgetToppedUp(event: ethereum.Event): void {
   if (subscription.state == "EXHAUSTED" && newBudget.gt(BigInt.zero()) && !lifetimeCapExhausted(subscription)) {
     subscription.state = "ACTIVE";
   }
+  subscription.requiresAccountRead = streamingSettlementRequiresAccountRead(subscription);
   subscription.save();
 
   const update = new BudgetUpdate(eventEntityId(event));

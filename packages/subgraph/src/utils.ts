@@ -20,8 +20,8 @@ export function subscriptionEntityId(account: Address, subscriptionId: Bytes): s
   return scopedEntityId(account, subscriptionId.toHexString());
 }
 
-export function railSubscriptionEntityId(account: Address, railId: BigInt): string {
-  return scopedEntityId(account, "rail:" + railId.toString());
+export function railSubscriptionEntityId(filecoinPay: Bytes, railId: BigInt): string {
+  return chainId().toString() + ":" + filecoinPay.toHexString() + ":" + railId.toString();
 }
 
 export function resourceSubscriptionEntityId(
